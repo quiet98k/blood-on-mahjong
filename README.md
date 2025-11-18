@@ -73,3 +73,38 @@ bun run preview
 ```
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+
+## MongoDB setup
+
+This project includes a simple MongoDB utility at `server/utils/mongo.ts`.
+
+1) Copy env example and set your values:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set:
+
+- `MONGODB_URI` (e.g., `mongodb://localhost:27017`)
+- `MONGODB_DB` (default database name, e.g., `blood_mahjong`)
+
+2) Start the dev server and test the connection:
+
+```bash
+npm run dev
+```
+
+Open http://localhost:3000/api/ping — you should see `{ ok: 1, mongo: { ok: 1 } }` if the connection is working.
+
+Use the util in server routes:
+
+```ts
+// server/api/users.get.ts
+import { getCollection } from '../utils/mongo'
+
+export default defineEventHandler(async () => {
+	const users = await (await getCollection('users')).find({}).toArray()
+	return users
+})
+```
