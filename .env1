@@ -1,0 +1,3 @@
+# set env
+MONGODB_URI=mongodb+srv://yifei4748:Vlsd7755@cluster0.tt50cgj.mongodb.net/
+MONGODB_DB=Blood_mahjong
