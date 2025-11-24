@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: {{ .Values.werf.image.app }}
+          image: {{ index .Values.werf.image "blood-on-mahjong" }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: {{ .Values.service.port }}
