@@ -31,7 +31,6 @@ jobs:
       - name: Install Node & Playwright deps
         run: |
           npm ci
-          npm install @playwright/test
           npx playwright install
 
       - name: Run tests
@@ -43,7 +42,9 @@ jobs:
       - name: Deploy with werf
         run: |
           source "$(werf ci-env github --as-file)"
-          werf converge \
-            --repo "ghcr.io/${{ github.repository_owner }}/blood-on-mahjong"
+          werf converge
         env:
+          WERF_ENV: prod
+          WERF_KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WERF_BUILDAH_MODE: auto
