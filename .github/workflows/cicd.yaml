@@ -10,7 +10,7 @@ on:
 jobs:
   prod:
     name: prod
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     env:
       WERF_BUILDAH_MODE: auto
