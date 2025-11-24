@@ -2,47 +2,48 @@ name: CI-CD
 
 on:
   push:
-    branches: ["main"]
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+
 
 jobs:
-  deploy:
+  prod:
+    name: prod
     runs-on: self-hosted
 
     env:
       WERF_BUILDAH_MODE: auto
-      KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
+      WERF_KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-
-      - name: Set KUBECONFIG
-        run: |
-          echo "$KUBECONFIG_BASE64" | base64 -d > kubeconfig
-          export KUBECONFIG=$PWD/kubeconfig
-
-      - name: Install Werf
-        run: |
-          curl -L https://werf.io/install.sh | bash
-          echo "$HOME/.werf/bin" >> $GITHUB_PATH
+          cache: "npm"
 
       - name: Install Node & Playwright deps
         run: |
           npm ci
-          npx playwright install --with-deps
+          npm install @playwright/test
+          npx playwright install
 
-      - name: Run Tests
+      - name: Run tests
         run: npm test
 
-      - name: Build & Deploy with Werf
+      - name: Install werf
+        uses: werf/actions/install@v2
+
+      - name: Deploy with werf
         run: |
-          werf build --repo ghcr.io/${{ github.repository_owner }}/blood-on-mahjong
+          source "$(werf ci-env github --as-file)"
           werf converge \
-            --repo ghcr.io/${{ github.repository_owner }}/blood-on-mahjong \
-            --kube-config kubeconfig
+            --repo "ghcr.io/${{ github.repository_owner }}/blood-on-mahjong"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
