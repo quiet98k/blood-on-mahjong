@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
         - name: app
-          image: "{{ .Values.werf.image.blood-on-mahjong.repository }}:{{ .Values.werf.image.blood-on-mahjong.tag }}"
-          imagePullPolicy: IfNotPresent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: {{ .Values.service.port }}
           env:
