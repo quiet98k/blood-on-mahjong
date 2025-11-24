@@ -1,0 +1,26 @@
+name: SSH Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+      - name: Add VM to known_hosts
+        run: |
+          ssh-keyscan -H vcm-51072.vm.duke.edu >> ~/.ssh/known_hosts
+
+      - name: SSH into server
+        run: |
+          ssh -i ~/.ssh/id_ed25519 yf201@vcm-51072.vm.duke.edu "echo 'Connected via GitHub Actions!'"
