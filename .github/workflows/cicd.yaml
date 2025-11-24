@@ -39,12 +39,14 @@ jobs:
       - name: Deploy with werf
         run: |
           source "$(werf ci-env github --as-file)"
+          werf cr login -u ${{ github.repository_owner }} -p $WERF_REPO_GITHUB_TOKEN ghcr.io
           werf converge
         env:
           WERF_ENV: prod
           WERF_KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # WERF_BUILDAH_MODE: auto
+          WERF_REPO_GITHUB_TOKEN: ${{ secrets.WERF_REPO_GITHUB_TOKEN }}
+          WERF_BUILDAH_MODE: auto
 
       - name: Run tests
         run: npm test
