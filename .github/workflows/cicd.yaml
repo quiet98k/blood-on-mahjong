@@ -33,9 +33,6 @@ jobs:
           npm ci
           npx playwright install
 
-      - name: Run tests
-        run: npm test
-
       - name: Install werf
         uses: werf/actions/install@v2
 
@@ -48,3 +45,6 @@ jobs:
           WERF_KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WERF_BUILDAH_MODE: auto
+
+      - name: Run tests
+        run: npm test
