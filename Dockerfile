@@ -10,7 +10,7 @@ COPY . .
 RUN npm run build
 
 # ─────────────── Production Stage ───────────────
-FROM node:22-alpine  AS production
+FROM node:22-alpine AS production
 
 ENV NODE_ENV=production
 WORKDIR /app

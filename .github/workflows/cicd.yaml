@@ -16,6 +16,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
       - name: Set KUBECONFIG
         run: |
           echo "$KUBECONFIG_BASE64" | base64 -d > kubeconfig
