@@ -1,6 +1,10 @@
 name: Test GHCR Permissions
 
 on:
+  push:
+    branches: ["ci-cd"]
+  pull_request:
+    branches: ["ci-cd"]
   workflow_dispatch:
 
 jobs:
