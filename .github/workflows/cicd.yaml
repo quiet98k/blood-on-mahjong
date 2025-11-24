@@ -5,7 +5,7 @@ on:
     branches: ["ci-cd"]
   pull_request:
     branches: ["ci-cd"]
-
+  workflow_dispatch:
 
 jobs:
   prod:
