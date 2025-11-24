@@ -2,9 +2,9 @@ name: CI-CD
 
 on:
   push:
-    branches: ["*"]
+    branches: ["ci-cd"]
   pull_request:
-    branches: ["*"]
+    branches: ["ci-cd"]
 
 
 jobs:
