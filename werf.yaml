@@ -9,4 +9,3 @@ deploy:
 image: blood-on-mahjong
 dockerfile: Dockerfile
 context: .
-
