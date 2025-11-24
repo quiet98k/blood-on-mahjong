@@ -1,0 +1,16 @@
+replicaCount: 4
+
+image:
+  repository: blood-on-mahjong
+  tag: ""
+  pullPolicy: IfNotPresent
+
+service:
+  port: 3000
+
+env:
+  - name: MONGODB_URI
+    valueFrom:
+      secretKeyRef:
+        name: mongodb-uri
+        key: uri

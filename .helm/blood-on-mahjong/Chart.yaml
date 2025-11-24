@@ -1,0 +1,4 @@
+apiVersion: v2
+name: blood-on-mahjong
+version: 0.1.0
+description: Nuxt Project Deployment
