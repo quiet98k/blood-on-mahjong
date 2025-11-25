@@ -8,7 +8,7 @@ on:
 jobs:
   cleanup:
     name: cleanup
-    runs-on: self-hosted
+    runs-on: vcm
 
     steps:
       - uses: actions/checkout@v4

@@ -10,7 +10,7 @@ on:
 jobs:
   prod:
     name: prod
-    runs-on: self-hosted
+    runs-on: vcm
 
     env:
       WERF_BUILDAH_MODE: auto
