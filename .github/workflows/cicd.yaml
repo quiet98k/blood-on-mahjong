@@ -28,8 +28,14 @@ jobs:
       - name: Deploy with werf
         run: |
           source "$(werf ci-env github --as-file)"
+
+          kubectl create secret generic mongodb-uri \
+            --from-literal=uri="${{ secrets.MONGODB_URI }}" \
+            --from-literal=db="${{ secrets.MONGODB_DB }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
           werf cr login -u ${{ github.repository_owner }} -p $WERF_REPO_GITHUB_TOKEN ghcr.io
-          werf converge --set mongodbUri="${{ secrets.MONGODB_URI }}"
+          werf converge
         env:
           WERF_ENV: prod
           WERF_KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}

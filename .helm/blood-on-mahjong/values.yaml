@@ -14,3 +14,9 @@ env:
       secretKeyRef:
         name: mongodb-uri
         key: uri
+  - name: MONGODB_DB
+    valueFrom:
+      secretKeyRef:
+        name: mongodb-uri
+        key: db
+
