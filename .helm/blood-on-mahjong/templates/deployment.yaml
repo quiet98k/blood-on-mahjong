@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ .Release.Name }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: 2
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -15,8 +15,17 @@ spec:
       containers:
         - name: app
           image: {{ index .Values.werf.image "blood-on-mahjong" }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: {{ .Values.service.port }}
+            - containerPort: 3000
           env:
-            {{- toYaml .Values.env | nindent 12 }}
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-uri
+                  key: uri
+            - name: MONGODB_DB
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-uri
+                  key: db

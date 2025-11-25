@@ -39,6 +39,7 @@ jobs:
           kubectl create secret generic mongodb-uri \
             --from-literal=uri="${{ secrets.MONGODB_URI }}" \
             --from-literal=db="${{ secrets.MONGODB_DB }}" \
+            -n blood-on-mahjong-prod \
             --dry-run=client -o yaml | kubectl apply -f -
 
           werf cr login -u ${{ github.repository_owner }} -p $WERF_REPO_GITHUB_TOKEN ghcr.io

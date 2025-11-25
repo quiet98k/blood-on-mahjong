@@ -5,8 +5,8 @@ metadata:
 spec:
   type: NodePort
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
+    - port: 3000
+      targetPort: 3000
       protocol: TCP
   selector:
     app: {{ .Release.Name }}
