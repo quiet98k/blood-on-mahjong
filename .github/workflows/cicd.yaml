@@ -2,10 +2,17 @@ name: CI-CD
 
 on:
   push:
-    branches: ["ci-cd"]
+    branches: ["*"]
   pull_request:
-    branches: ["ci-cd"]
+    branches: ["*"]
   workflow_dispatch:
+
+# on:
+#   push:
+#     branches: ["ci-cd"]
+#   pull_request:
+#     branches: ["ci-cd"]
+#   workflow_dispatch:
 
 jobs:
   prod:
