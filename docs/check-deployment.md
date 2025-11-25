@@ -99,11 +99,6 @@ Example:
 kubectl logs -n blood-on-mahjong-prod blood-on-mahjong-7699f4695-cf4r5
 ```
 
-```
-kubectl logs -n blood-on-mahjong-prod blood-on-mahjong-7699f4695-fw2r5
-```
-
-
 ---
 
 ## 5. Check Service (NodePort)

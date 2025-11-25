@@ -10,7 +10,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "start": "nuxt start",
-    "test": "node -e \"console.log('FIX ME: placeholder test - replace with real tests')\""
+    "test:mock": "node -e \"console.log('FIX ME: placeholder test - replace with real tests')\"",
+    "test": "playwright test"
   },
   "dependencies": {
     "@nuxt/icon": "^2.0.0",

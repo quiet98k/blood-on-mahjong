@@ -63,4 +63,6 @@ jobs:
           npx playwright install
 
       - name: Run tests
+        env:
+          BASE_URL: "http://vcm-51072.vm.duke.edu:31823"
         run: npm test
