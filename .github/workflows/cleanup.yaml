@@ -21,6 +21,7 @@ jobs:
       - name: Cleanup old images
         run: |
           source "$(werf ci-env github --as-file)"
+          werf cr login -u ${{ github.repository_owner }} -p $WERF_REPO_GITHUB_TOKEN ghcr.io
           werf cleanup
         env:
           WERF_KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
