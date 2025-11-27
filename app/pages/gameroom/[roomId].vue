@@ -11,32 +11,91 @@
         </div>
 
         <button class="mahjong-button small" @click="backToLobby">
-          Back to Lobby
+          Back to Waiting Room
         </button>
       </header>
 
-      <main v-if="isValidRoom" class="room-main">
-        <div class="mahjong-table">
-          <div class="center-message">
-            <p class="status">Waiting for other players to join…</p>
-            <p class="hint">
-              Invite your friends to join this room using the room ID above.
-            </p>
+      <main class="room-main">
+        <!-- Big responsive table -->
+        <div class="table-wrapper">
+          <div class="mahjong-table">
+            <!-- Center status message -->
+            <div class="table-center">
+              <p class="status">
+                {{ isWinner ? 'You Won! (Test Hu)' : 'Waiting / Testing Layout' }}
+              </p>
+              <p class="hint">
+                Click tiles to select; click again to discard.
+                1s after discarding, a new tile is drawn.
+              </p>
+            </div>
+
+            <!-- Top player -->
+            <div class="seat seat-top">
+              <PlayerOtherArea
+                name="Player North"
+                position="top"
+                :hand="northHand"
+                :melds="northMelds"
+                :discards="northDiscards"
+                :is-winner="false"
+              />
+            </div>
+
+            <!-- Left player -->
+            <div class="seat seat-left">
+              <PlayerOtherArea
+                name="Player West"
+                position="left"
+                :hand="westHand"
+                :melds="westMelds"
+                :discards="westDiscards"
+                :is-winner="false"
+              />
+            </div>
+
+            <!-- Right player -->
+            <div class="seat seat-right">
+              <PlayerOtherArea
+                name="Player East"
+                position="right"
+                :hand="eastHand"
+                :melds="eastMelds"
+                :discards="eastDiscards"
+                :is-winner="false"
+              />
+            </div>
+
+            <!-- Bottom (self) player -->
+            <div class="seat seat-bottom">
+              <PlayerSelfArea
+                name="You"
+                :hand="playerHand"
+                :melds="playerMelds"
+                :discards="playerDiscards"
+                :selected-tile-id="selectedTileId"
+                :is-winner="isWinner"
+                @tileClick="handleTileClick"
+              />
+            </div>
           </div>
         </div>
-      </main>
 
-      <main v-else class="room-main">
-        <div class="mahjong-table not-found">
-          <div class="center-message">
-            <p class="status">Room Not Found</p>
-            <p class="hint">
-              We can’t find the room / game you are looking for.
-              <br />
-              Please check the room ID or return to the waiting room.
-            </p>
-            <button class="mahjong-button" @click="backToLobby">
-              Back to Waiting Room
+        <!-- Side test controls -->
+        <div class="side-panel">
+          <div class="test-controls">
+            <h2 class="panel-title">Test Controls</h2>
+            <button class="mahjong-button panel-button" @click="testPung">
+              Test Pung (碰)
+            </button>
+            <button class="mahjong-button panel-button" @click="testKong">
+              Test Kong (杠)
+            </button>
+            <button class="mahjong-button panel-button" @click="testHu">
+              Test Hu (胡)
+            </button>
+            <button class="mahjong-button panel-button danger" @click="resetState">
+              Reset
             </button>
           </div>
         </div>
@@ -45,15 +104,141 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import PlayerSelfArea from '~/components/PlayerSelfArea.vue'
+import PlayerOtherArea from '~/components/PlayerOtherArea.vue'
+import {
+  createFullTileSet,
+  sortTilesById,
+  type Tile,
+  type Meld
+} from '~/utils/mahjongTiles'
+
 const route = useRoute()
 
 const roomId = computed(() => String(route.params.roomId || ''))
-// TODO: replace this with a real backend / MongoDB check
-const isValidRoom = computed(() => roomId.value === '66666')
+const backToLobby = () => navigateTo('/')
 
-const backToLobby = () => {
-  return navigateTo('/')
+// ---- Deal tiles: 13 each for 4 players, rest is draw pile ----
+const fullSet = createFullTileSet()
+// fullSet is already ordered by id (0..107)
+
+//: self is South, others: North, West, East
+const selfHandInitial = sortTilesById(fullSet.slice(0, 13))
+const northHandInitial = fullSet.slice(13, 26)
+const westHandInitial = fullSet.slice(26, 39)
+const eastHandInitial = fullSet.slice(39, 52)
+const drawPileInitial = fullSet.slice(52)
+
+// ---- State ----
+const playerHand = ref<Tile[]>([...selfHandInitial])
+const playerMelds = ref<Meld[]>([])
+const playerDiscards = ref<Tile[]>([])
+const selectedTileId = ref<number | null>(null)
+const isWinner = ref(false)
+const drawPile = ref<Tile[]>([...drawPileInitial])
+
+// other players (static for now)
+const northHand = ref<Tile[]>([...northHandInitial])
+const westHand = ref<Tile[]>([...westHandInitial])
+const eastHand = ref<Tile[]>([...eastHandInitial])
+const northMelds = ref<Meld[]>([])
+const westMelds = ref<Meld[]>([])
+const eastMelds = ref<Meld[]>([])
+const northDiscards = ref<Tile[]>([])
+const westDiscards = ref<Tile[]>([])
+const eastDiscards = ref<Tile[]>([])
+
+let drawTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+// ---- Helpers ----
+const drawOneTile = () => {
+  if (drawPile.value.length === 0) return
+  const tile = drawPile.value.shift()
+  if (!tile) return
+  playerHand.value.push(tile)
+  playerHand.value = sortTilesById(playerHand.value)
+}
+
+const scheduleDrawAfterDiscard = () => {
+  if (drawTimeoutId) {
+    clearTimeout(drawTimeoutId)
+    drawTimeoutId = null
+  }
+  drawTimeoutId = setTimeout(() => {
+    drawOneTile()
+    drawTimeoutId = null
+  }, 1000)
+}
+
+const discardTile = (tile: Tile) => {
+  if (isWinner.value) return
+
+  const idx = playerHand.value.findIndex((t) => t.id === tile.id)
+  if (idx === -1) return
+
+  const [removed] = playerHand.value.splice(idx, 1)
+  playerDiscards.value.push(removed)
+  selectedTileId.value = null
+
+  scheduleDrawAfterDiscard()
+}
+
+// ---- Hand interaction ----
+const handleTileClick = (tile: Tile) => {
+  if (isWinner.value) return
+
+  if (selectedTileId.value !== tile.id) {
+    selectedTileId.value = tile.id
+  } else {
+    // second click => discard
+    discardTile(tile)
+  }
+}
+
+// ---- Test buttons ----
+const testPung = () => {
+  if (playerHand.value.length < 3) return
+  const taken = playerHand.value.splice(playerHand.value.length - 3, 3)
+  playerMelds.value.push({ type: 'pung', tiles: taken })
+  playerHand.value = sortTilesById(playerHand.value)
+}
+
+const testKong = () => {
+  if (playerHand.value.length < 4) return
+  const taken = playerHand.value.splice(playerHand.value.length - 4, 4)
+  playerMelds.value.push({ type: 'kong', tiles: taken })
+  playerHand.value = sortTilesById(playerHand.value)
+}
+
+const testHu = () => {
+  isWinner.value = true
+}
+
+const resetState = () => {
+  if (drawTimeoutId) {
+    clearTimeout(drawTimeoutId)
+    drawTimeoutId = null
+  }
+
+  playerHand.value = [...selfHandInitial]
+  playerMelds.value = []
+  playerDiscards.value = []
+  selectedTileId.value = null
+  isWinner.value = false
+  drawPile.value = [...drawPileInitial]
+
+  // other players back to default (static for now)
+  northHand.value = [...northHandInitial]
+  westHand.value = [...westHandInitial]
+  eastHand.value = [...eastHandInitial]
+  northMelds.value = []
+  westMelds.value = []
+  eastMelds.value = []
+  northDiscards.value = []
+  westDiscards.value = []
+  eastDiscards.value = []
 }
 </script>
 
@@ -66,20 +251,20 @@ const backToLobby = () => {
   background: radial-gradient(circle at top, #153b2f, #07130e);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #f5f5f5;
-  padding: 24px;
+  padding: 16px;
 }
 
 .room-container {
   background: rgba(7, 19, 14, 0.92);
   border-radius: 20px;
-  padding: 24px 24px 28px;
-  max-width: 960px;
+  padding: 16px 16px 20px;
+  max-width: 1280px;
   width: 100%;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .room-header {
@@ -87,12 +272,6 @@ const backToLobby = () => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-
-.room-main {
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 .mahjong-title {
@@ -104,6 +283,121 @@ const backToLobby = () => {
 .mahjong-subtitle {
   font-size: 0.9rem;
   opacity: 0.85;
+}
+
+.room-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 900px) {
+  .room-main {
+    flex-direction: row;
+    align-items: stretch;
+  }
+}
+
+.table-wrapper {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mahjong-table {
+  position: relative;
+  width: min(80vw, 900px);
+  max-height: 80vh;
+  aspect-ratio: 4 / 3;
+  border-radius: 20px;
+  background: radial-gradient(circle at center, #1a5c3e, #0c3421);
+  border: 4px solid #b59a5a;
+  box-shadow:
+    inset 0 0 0 4px rgba(0, 0, 0, 0.25),
+    0 12px 30px rgba(0, 0, 0, 0.8);
+  padding: 14px;
+  overflow: hidden;
+}
+
+.table-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.status {
+  font-size: 1.2rem;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.hint {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
+/* Seat positioning */
+.seat {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.seat-top {
+  top: 4%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 75%;
+}
+
+.seat-bottom {
+  bottom: 2%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+}
+
+.seat-left {
+  left: 1.5%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22%;
+}
+
+.seat-right {
+  right: 1.5%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22%;
+}
+
+/* Side panel */
+.side-panel {
+  flex: 0 0 220px;
+}
+
+@media (max-width: 899px) {
+  .side-panel {
+    flex: 0 0 auto;
+  }
+}
+
+.test-controls {
+  padding: 10px 12px 12px;
+  border-radius: 14px;
+  background: rgba(5, 14, 10, 0.9);
+}
+
+.panel-title {
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  opacity: 0.9;
 }
 
 .mahjong-button {
@@ -131,44 +425,20 @@ const backToLobby = () => {
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
 }
 
-.mahjong-table {
+.panel-button {
+  display: block;
   width: 100%;
-  max-width: 720px;
-  aspect-ratio: 4 / 3;
-  border-radius: 20px;
-  margin: 0 auto;
-  background: radial-gradient(circle at center, #1a5c3e, #0c3421);
-  border: 4px solid #b59a5a;
-  box-shadow:
-    inset 0 0 0 4px rgba(0, 0, 0, 0.25),
-    0 12px 30px rgba(0, 0, 0, 0.8);
-  position: relative;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mahjong-table.not-found {
-  background: radial-gradient(circle at center, #5c1a1a, #340c0c);
-  border-color: #b55a5a;
-}
-
-.center-message {
   text-align: center;
-  max-width: 380px;
+  margin-bottom: 6px;
 }
 
-.status {
-  font-size: 1.4rem;
-  margin-bottom: 8px;
-  font-weight: 600;
+.panel-button.danger {
+  background: rgba(123, 26, 26, 0.9);
+  color: #ffdada;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.hint {
-  font-size: 0.95rem;
-  opacity: 0.9;
-  line-height: 1.5;
-  margin-bottom: 18px;
+.panel-button.danger:hover {
+  background: rgba(160, 38, 38, 1);
 }
 </style>
