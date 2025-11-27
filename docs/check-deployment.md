@@ -90,13 +90,14 @@ Expected pod fields:
 View logs for a specific pod:
 
 ```
-kubectl logs -n blood-on-mahjong-prod <pod-name>
+kubectl logs -n blood-on-mahjong-prod -f <pod-name>
 ```
 
 Example:
 
 ```
-kubectl logs -n blood-on-mahjong-prod blood-on-mahjong-7699f4695-cf4r5
+kubectl logs -n blood-on-mahjong-prod -f blood-on-mahjong-759989cb56-88fkm
+kubectl logs -n blood-on-mahjong-prod -f blood-on-mahjong-759989cb56-h78zd
 ```
 
 ---
