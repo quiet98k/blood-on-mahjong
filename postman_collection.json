@@ -1,0 +1,363 @@
+{
+  "info": {
+    "name": "Sichuan Mahjong API",
+    "description": "API endpoints for Sichuan Mahjong (Blood Battle to the End)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "gameId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "playerId1",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "playerId2",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "playerId3",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "playerId4",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Create Game",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerName\": \"Alice\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/game/create",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "game", "create"]
+        },
+        "description": "Create a new game and become the dealer (Player 1)"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const response = pm.response.json();",
+              "if (response.success) {",
+              "  pm.collectionVariables.set('gameId', response.data.gameId);",
+              "  pm.collectionVariables.set('playerId1', response.data.playerId);",
+              "  console.log('Game ID:', response.data.gameId);",
+              "  console.log('Player 1 ID:', response.data.playerId);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Join Game - Player 2",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gameId\": \"{{gameId}}\",\n  \"playerName\": \"Bob\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/game/join",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "game", "join"]
+        },
+        "description": "Player 2 joins the game"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const response = pm.response.json();",
+              "if (response.success) {",
+              "  pm.collectionVariables.set('playerId2', response.data.playerId);",
+              "  console.log('Player 2 ID:', response.data.playerId);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Join Game - Player 3",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gameId\": \"{{gameId}}\",\n  \"playerName\": \"Carol\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/game/join",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "game", "join"]
+        },
+        "description": "Player 3 joins the game"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const response = pm.response.json();",
+              "if (response.success) {",
+              "  pm.collectionVariables.set('playerId3', response.data.playerId);",
+              "  console.log('Player 3 ID:', response.data.playerId);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Join Game - Player 4",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gameId\": \"{{gameId}}\",\n  \"playerName\": \"Dave\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/game/join",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "game", "join"]
+        },
+        "description": "Player 4 joins - Game auto-starts!"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const response = pm.response.json();",
+              "if (response.success) {",
+              "  pm.collectionVariables.set('playerId4', response.data.playerId);",
+              "  console.log('Player 4 ID:', response.data.playerId);",
+              "  console.log('Game started!');",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Get Game State - Player 1",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/game/state?gameId={{gameId}}&playerId={{playerId1}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "game", "state"],
+          "query": [
+            {
+              "key": "gameId",
+              "value": "{{gameId}}"
+            },
+            {
+              "key": "playerId",
+              "value": "{{playerId1}}"
+            }
+          ]
+        },
+        "description": "Get current game state for Player 1 (includes their hand and available actions)"
+      },
+      "response": []
+    },
+    {
+      "name": "6. Discard Tile",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gameId\": \"{{gameId}}\",\n  \"playerId\": \"{{playerId1}}\",\n  \"action\": \"discard\",\n  \"tileId\": \"dots-1-0\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/game/action",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "game", "action"]
+        },
+        "description": "Discard a tile (replace tileId with actual tile from hand)"
+      },
+      "response": []
+    },
+    {
+      "name": "7. Peng (Claim Discard)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gameId\": \"{{gameId}}\",\n  \"playerId\": \"{{playerId2}}\",\n  \"action\": \"peng\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/game/action",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "game", "action"]
+        },
+        "description": "Claim a discarded tile to form a triplet"
+      },
+      "response": []
+    },
+    {
+      "name": "8. Concealed Kong",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gameId\": \"{{gameId}}\",\n  \"playerId\": \"{{playerId1}}\",\n  \"action\": \"concealed_kong\",\n  \"tileIds\": [\"dots-1-0\", \"dots-1-1\", \"dots-1-2\", \"dots-1-3\"]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/game/action",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "game", "action"]
+        },
+        "description": "Form a kong from 4 identical tiles in hand"
+      },
+      "response": []
+    },
+    {
+      "name": "9. Win (Hu)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gameId\": \"{{gameId}}\",\n  \"playerId\": \"{{playerId1}}\",\n  \"action\": \"hu\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/game/action",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "game", "action"]
+        },
+        "description": "Declare a win (only works if hand is valid)"
+      },
+      "response": []
+    },
+    {
+      "name": "10. Pass",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gameId\": \"{{gameId}}\",\n  \"playerId\": \"{{playerId2}}\",\n  \"action\": \"pass\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/game/action",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "game", "action"]
+        },
+        "description": "Pass on a pending action (peng/kong/hu)"
+      },
+      "response": []
+    },
+    {
+      "name": "11. List All Games",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/game/list",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "game", "list"]
+        },
+        "description": "Get a list of all active games"
+      },
+      "response": []
+    },
+    {
+      "name": "12. Test Ping",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/ping",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "ping"]
+        },
+        "description": "Test if server is running"
+      },
+      "response": []
+    }
+  ]
+}
