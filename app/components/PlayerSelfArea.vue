@@ -52,7 +52,7 @@
           :tile="tile"
           :selected="selectedTileId === tile.id"
           :just-drawn="justDrawnTileId === tile.id"
-          :claim-highlight="claimCandidateIds.includes(tile.id)"
+          :claim-highlight="claimCandidateIds?.includes(tile.id)"
           :dimmed="isWinner"
           @click="onTileClick(tile)"
         />
@@ -76,20 +76,20 @@
 </template>
 
 <script setup lang="ts">
-import MahjongTile from '~/components/MahjongTile.vue'
-import type { Tile, Meld, MeldType } from '~/utils/mahjongTiles'
+import MahjongTile from './MahjongTile.vue'
+import type { Tile, Meld, MeldType } from '~/types/game'
 
 const props = defineProps<{
   name: string
   hand: Tile[]
   melds: Meld[]
   discards: Tile[]
-  selectedTileId: number | null
-  isWinner: boolean
-  justDrawnTileId: number | null
-  claimCandidateIds: number[]
-  showClaimOptions: boolean
-  claimType: MeldType | null
+  selectedTileId?: string | null
+  isWinner?: boolean
+  justDrawnTileId?: string | null
+  claimCandidateIds?: string[]
+  showClaimOptions?: boolean
+  claimType?: MeldType | null
 }>()
 
 const emit = defineEmits<{
@@ -97,13 +97,6 @@ const emit = defineEmits<{
   (e: 'confirmClaim'): void
   (e: 'skipClaim'): void
 }>()
-
-const onTileClick = (tile: Tile) => {
-  emit('tileClick', tile)
-}
-
-const confirmClaim = () => emit('confirmClaim')
-const skipClaim = () => emit('skipClaim')
 </script>
 
 <style scoped>

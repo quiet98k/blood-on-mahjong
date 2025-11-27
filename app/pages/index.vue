@@ -32,13 +32,55 @@
 </template>
 
 <script setup>
-const startNewGame = () => {
-  const roomId = 66666 // TODO: replace with backend / MongoDB-generated roomId
-  return navigateTo(`/gameroom/${roomId}`)
+const startNewGame = async () => {
+  try {
+    const { data, error } = await useFetch('/api/game/create', {
+      method: 'POST',
+      body: { playerName: 'Player 1' } // TODO: Get real name
+    })
+
+    if (error.value) {
+      console.error('Failed to create game:', error.value)
+      return
+    }
+
+    if (data.value?.success) {
+      const { gameId, playerId } = data.value.data
+      return navigateTo(`/gameroom/${gameId}?playerId=${playerId}`)
+    }
+  } catch (e) {
+    console.error('Error creating game:', e)
+  }
 }
 
 const onJoinGame = () => {
-  console.log('Join Game clicked (not implemented yet)')
+  // For now, prompt for game ID
+  const gameId = prompt('Enter Game ID:')
+  if (gameId) {
+    joinGame(gameId)
+  }
+}
+
+const joinGame = async (gameId) => {
+  try {
+    const { data, error } = await useFetch('/api/game/join', {
+      method: 'POST',
+      body: { gameId, playerName: 'Player ' + Math.floor(Math.random() * 1000) }
+    })
+
+    if (error.value) {
+      console.error('Failed to join game:', error.value)
+      alert('Failed to join game: ' + error.value.message)
+      return
+    }
+
+    if (data.value?.success) {
+      const { playerId } = data.value.data
+      return navigateTo(`/gameroom/${gameId}?playerId=${playerId}`)
+    }
+  } catch (e) {
+    console.error('Error joining game:', e)
+  }
 }
 
 const onMatchHistory = () => {

@@ -1,4 +1,5 @@
 import { MongoClient, Db, Collection, Document } from 'mongodb'
+import 'dotenv/config'
 
 // Cache the client/db across hot-reloads in dev and across route calls
 // so we don't create multiple connections.
