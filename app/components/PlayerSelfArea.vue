@@ -1,4 +1,3 @@
-<!-- components/PlayerSelfArea.vue -->
 <template>
   <div class="player-area" :class="{ 'player-area--winner': isWinner }">
     <div class="player-header">
@@ -30,19 +29,7 @@
       </div>
     </div>
 
-    <!-- Hand -->
-    <div class="player-hand">
-      <MahjongTile
-        v-for="tile in hand"
-        :key="tile.id"
-        :tile="tile"
-        :selected="selectedTileId === tile.id"
-        :dimmed="isWinner"
-        @click="onTileClick(tile)"
-      />
-    </div>
-
-    <!-- Discards -->
+    <!-- Discards moved above hand (closer to table center) -->
     <div class="player-discards">
       <div class="discards-label">Discards</div>
       <div class="discards-row">
@@ -55,12 +42,42 @@
         />
       </div>
     </div>
+
+    <!-- Hand + claim actions overlay -->
+    <div class="player-hand-wrapper">
+      <div class="player-hand">
+        <MahjongTile
+          v-for="tile in hand"
+          :key="tile.id"
+          :tile="tile"
+          :selected="selectedTileId === tile.id"
+          :just-drawn="justDrawnTileId === tile.id"
+          :claim-highlight="claimCandidateIds.includes(tile.id)"
+          :dimmed="isWinner"
+          @click="onTileClick(tile)"
+        />
+      </div>
+
+      <div v-if="showClaimOptions && claimType" class="claim-actions">
+        <span class="claim-label">
+          You can {{ claimType === 'pung' ? 'Pung (碰)' : 'Kong (杠)' }} this tile
+        </span>
+        <div class="claim-buttons">
+          <button class="claim-button primary" @click="confirmClaim">
+            {{ claimType === 'pung' ? 'Pung' : 'Kong' }}
+          </button>
+          <button class="claim-button" @click="skipClaim">
+            Skip
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import MahjongTile from '~/components/MahjongTile.vue'
-import type { Tile, Meld } from '~/utils/mahjongTiles'
+import type { Tile, Meld, MeldType } from '~/utils/mahjongTiles'
 
 const props = defineProps<{
   name: string
@@ -69,23 +86,33 @@ const props = defineProps<{
   discards: Tile[]
   selectedTileId: number | null
   isWinner: boolean
+  justDrawnTileId: number | null
+  claimCandidateIds: number[]
+  showClaimOptions: boolean
+  claimType: MeldType | null
 }>()
 
 const emit = defineEmits<{
   (e: 'tileClick', tile: Tile): void
+  (e: 'confirmClaim'): void
+  (e: 'skipClaim'): void
 }>()
 
 const onTileClick = (tile: Tile) => {
   emit('tileClick', tile)
 }
+
+const confirmClaim = () => emit('confirmClaim')
+const skipClaim = () => emit('skipClaim')
 </script>
 
 <style scoped>
 .player-area {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px 16px 16px;
+  gap: 10px;
+  padding: 10px 12px 12px;
   border-radius: 14px;
   background: rgba(5, 14, 10, 0.8);
 }
@@ -143,18 +170,8 @@ const onTileClick = (tile: Tile) => {
   box-shadow: 0 0 10px rgba(255, 214, 0, 0.4);
 }
 
-.player-hand {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  min-height: 72px;
-  padding: 4px;
-  border-radius: 10px;
-  background: rgba(9, 30, 22, 0.9);
-}
-
 .player-discards {
-  margin-top: 4px;
+  margin-top: 0;
 }
 
 .discards-label {
@@ -167,5 +184,61 @@ const onTileClick = (tile: Tile) => {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+/* hand + claim overlay */
+.player-hand-wrapper {
+  position: relative;
+}
+
+.player-hand {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 72px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(9, 30, 22, 0.9);
+}
+
+.claim-actions {
+  position: absolute;
+  top: -4px;
+  right: 6px;
+  transform: translateY(-100%);
+  background: rgba(9, 30, 22, 0.95);
+  border-radius: 10px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.6);
+  font-size: 0.8rem;
+  max-width: 220px;
+}
+
+.claim-label {
+  display: block;
+  margin-bottom: 4px;
+  opacity: 0.9;
+}
+
+.claim-buttons {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.claim-button {
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: none;
+  font-size: 0.8rem;
+  cursor: pointer;
+  background: rgba(12, 40, 30, 0.9);
+  color: #e0f2e9;
+}
+
+.claim-button.primary {
+  background: linear-gradient(135deg, #1f8a52, #46c574);
+  color: #03100a;
 }
 </style>

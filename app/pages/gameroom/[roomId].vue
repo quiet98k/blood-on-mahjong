@@ -1,4 +1,3 @@
-<!-- pages/gameroom/[roomId].vue -->
 <template>
   <div class="mahjong-page">
     <div class="room-container">
@@ -38,7 +37,7 @@
                 :hand="northHand"
                 :melds="northMelds"
                 :discards="northDiscards"
-                :is-winner="false"
+                :is-winner="northIsWinner"
               />
             </div>
 
@@ -50,7 +49,7 @@
                 :hand="westHand"
                 :melds="westMelds"
                 :discards="westDiscards"
-                :is-winner="false"
+                :is-winner="westIsWinner"
               />
             </div>
 
@@ -62,7 +61,8 @@
                 :hand="eastHand"
                 :melds="eastMelds"
                 :discards="eastDiscards"
-                :is-winner="false"
+                :is-winner="eastIsWinner"
+                :claimable-discard-tile-id="claimableDiscardTileId"
               />
             </div>
 
@@ -75,7 +75,13 @@
                 :discards="playerDiscards"
                 :selected-tile-id="selectedTileId"
                 :is-winner="isWinner"
+                :just-drawn-tile-id="justDrawnTileId"
+                :claim-candidate-ids="claimCandidateTileIds"
+                :show-claim-options="!!claimType"
+                :claim-type="claimType"
                 @tileClick="handleTileClick"
+                @confirmClaim="confirmClaim"
+                @skipClaim="skipClaim"
               />
             </div>
           </div>
@@ -83,19 +89,71 @@
 
         <!-- Side test controls -->
         <div class="side-panel">
+          <!-- Self test controls -->
           <div class="test-controls">
-            <h2 class="panel-title">Test Controls</h2>
-            <button class="mahjong-button panel-button" @click="testPung">
-              Test Pung (碰)
+            <h2 class="panel-title">Self Test Controls</h2>
+            <button class="mahjong-button panel-button" @click="startSelfClaim('pung')">
+              Test Self Pung (碰)
             </button>
-            <button class="mahjong-button panel-button" @click="testKong">
-              Test Kong (杠)
+            <button class="mahjong-button panel-button" @click="startSelfClaim('kong')">
+              Test Self Kong (杠)
             </button>
-            <button class="mahjong-button panel-button" @click="testHu">
-              Test Hu (胡)
+            <button class="mahjong-button panel-button" @click="testSelfHu">
+              Test Self Hu (胡)
             </button>
             <button class="mahjong-button panel-button danger" @click="resetState">
-              Reset
+              Reset All
+            </button>
+          </div>
+
+          <!-- North controls -->
+          <div class="test-controls">
+            <h3 class="panel-subtitle">North Test</h3>
+            <button class="mahjong-button panel-button" @click="testKongFor('north')">
+              North Kong
+            </button>
+            <button class="mahjong-button panel-button" @click="testPungFor('north')">
+              North Pung
+            </button>
+            <button class="mahjong-button panel-button" @click="testHuFor('north')">
+              North Hu
+            </button>
+            <button class="mahjong-button panel-button" @click="testDiscardFor('north')">
+              North Discard
+            </button>
+          </div>
+
+          <!-- West controls -->
+          <div class="test-controls">
+            <h3 class="panel-subtitle">West Test</h3>
+            <button class="mahjong-button panel-button" @click="testKongFor('west')">
+              West Kong
+            </button>
+            <button class="mahjong-button panel-button" @click="testPungFor('west')">
+              West Pung
+            </button>
+            <button class="mahjong-button panel-button" @click="testHuFor('west')">
+              West Hu
+            </button>
+            <button class="mahjong-button panel-button" @click="testDiscardFor('west')">
+              West Discard
+            </button>
+          </div>
+
+          <!-- East controls -->
+          <div class="test-controls">
+            <h3 class="panel-subtitle">East Test</h3>
+            <button class="mahjong-button panel-button" @click="testKongFor('east')">
+              East Kong
+            </button>
+            <button class="mahjong-button panel-button" @click="testPungFor('east')">
+              East Pung
+            </button>
+            <button class="mahjong-button panel-button" @click="testHuFor('east')">
+              East Hu
+            </button>
+            <button class="mahjong-button panel-button" @click="testDiscardFor('east')">
+              East Discard
             </button>
           </div>
         </div>
@@ -112,43 +170,53 @@ import {
   createFullTileSet,
   sortTilesById,
   type Tile,
-  type Meld
+  type Meld,
+  type MeldType
 } from '~/utils/mahjongTiles'
 
 const route = useRoute()
-
 const roomId = computed(() => String(route.params.roomId || ''))
 const backToLobby = () => navigateTo('/')
 
-// ---- Deal tiles: 13 each for 4 players, rest is draw pile ----
+// ---- Initial deal: 13 each, rest draw pile ----
 const fullSet = createFullTileSet()
-// fullSet is already ordered by id (0..107)
-
-//: self is South, others: North, West, East
 const selfHandInitial = sortTilesById(fullSet.slice(0, 13))
 const northHandInitial = fullSet.slice(13, 26)
 const westHandInitial = fullSet.slice(26, 39)
 const eastHandInitial = fullSet.slice(39, 52)
 const drawPileInitial = fullSet.slice(52)
 
-// ---- State ----
+// ---- State: self ----
 const playerHand = ref<Tile[]>([...selfHandInitial])
 const playerMelds = ref<Meld[]>([])
 const playerDiscards = ref<Tile[]>([])
 const selectedTileId = ref<number | null>(null)
+const justDrawnTileId = ref<number | null>(null)
 const isWinner = ref(false)
 const drawPile = ref<Tile[]>([...drawPileInitial])
 
-// other players (static for now)
+// claim (self pung/kong on east discard)
+const claimType = ref<MeldType | null>(null)
+const claimCandidateTileIds = ref<number[]>([])
+const claimableDiscardTileId = ref<number | null>(null)
+const claimSource = ref<'east' | null>(null)
+
+// ---- State: other players ----
 const northHand = ref<Tile[]>([...northHandInitial])
 const westHand = ref<Tile[]>([...westHandInitial])
 const eastHand = ref<Tile[]>([...eastHandInitial])
+
 const northMelds = ref<Meld[]>([])
 const westMelds = ref<Meld[]>([])
 const eastMelds = ref<Meld[]>([])
+
 const northDiscards = ref<Tile[]>([])
 const westDiscards = ref<Tile[]>([])
 const eastDiscards = ref<Tile[]>([])
+
+const northIsWinner = ref(false)
+const westIsWinner = ref(false)
+const eastIsWinner = ref(false)
 
 let drawTimeoutId: ReturnType<typeof setTimeout> | null = null
 
@@ -159,6 +227,7 @@ const drawOneTile = () => {
   if (!tile) return
   playerHand.value.push(tile)
   playerHand.value = sortTilesById(playerHand.value)
+  justDrawnTileId.value = tile.id
 }
 
 const scheduleDrawAfterDiscard = () => {
@@ -181,41 +250,162 @@ const discardTile = (tile: Tile) => {
   const [removed] = playerHand.value.splice(idx, 1)
   playerDiscards.value.push(removed)
   selectedTileId.value = null
+  justDrawnTileId.value = null
 
   scheduleDrawAfterDiscard()
 }
 
-// ---- Hand interaction ----
+// ---- self hand click ----
 const handleTileClick = (tile: Tile) => {
   if (isWinner.value) return
 
   if (selectedTileId.value !== tile.id) {
     selectedTileId.value = tile.id
+    justDrawnTileId.value = null
   } else {
-    // second click => discard
     discardTile(tile)
   }
 }
 
-// ---- Test buttons ----
-const testPung = () => {
-  if (playerHand.value.length < 3) return
-  const taken = playerHand.value.splice(playerHand.value.length - 3, 3)
-  playerMelds.value.push({ type: 'pung', tiles: taken })
-  playerHand.value = sortTilesById(playerHand.value)
+// ---- claim flow (self Pung/Kong on East discard) ----
+const ensureEastHasDiscard = () => {
+  if (eastDiscards.value.length > 0) return
+  if (eastHand.value.length === 0) return
+  const tile = eastHand.value.pop()
+  if (!tile) return
+  eastDiscards.value.push(tile)
 }
 
-const testKong = () => {
-  if (playerHand.value.length < 4) return
-  const taken = playerHand.value.splice(playerHand.value.length - 4, 4)
-  playerMelds.value.push({ type: 'kong', tiles: taken })
-  playerHand.value = sortTilesById(playerHand.value)
+const startSelfClaim = (type: MeldType) => {
+  if (type !== 'pung' && type !== 'kong') return
+  ensureEastHasDiscard()
+  const lastDiscard = eastDiscards.value[eastDiscards.value.length - 1]
+  if (!lastDiscard) return
+
+  claimSource.value = 'east'
+  claimType.value = type
+  claimableDiscardTileId.value = lastDiscard.id
+
+  const need = type === 'pung' ? 2 : 3
+  const candidates = playerHand.value.slice(-need).map((t) => t.id)
+  claimCandidateTileIds.value = candidates
+  selectedTileId.value = null
+  justDrawnTileId.value = null
 }
 
-const testHu = () => {
+const clearClaimState = () => {
+  claimType.value = null
+  claimCandidateTileIds.value = []
+  claimableDiscardTileId.value = null
+  claimSource.value = null
+}
+
+const confirmClaim = () => {
+  if (!claimType.value || !claimSource.value || claimableDiscardTileId.value == null) {
+    clearClaimState()
+    return
+  }
+
+  // take discard from east (only source implemented now)
+  const sourceDiscards = claimSource.value === 'east' ? eastDiscards.value : null
+  if (!sourceDiscards) {
+    clearClaimState()
+    return
+  }
+
+  const discardIdx = sourceDiscards.findIndex((t) => t.id === claimableDiscardTileId.value)
+  if (discardIdx === -1) {
+    clearClaimState()
+    return
+  }
+  const [claimedTile] = sourceDiscards.splice(discardIdx, 1)
+
+  // take tiles from self hand
+  const takenFromHand: Tile[] = []
+  claimCandidateTileIds.value.forEach((id) => {
+    const idx = playerHand.value.findIndex((t) => t.id === id)
+    if (idx !== -1) {
+      const [removed] = playerHand.value.splice(idx, 1)
+      takenFromHand.push(removed)
+    }
+  })
+
+  // combine into meld (taken + claimed discard)
+  const meldTiles = [...takenFromHand, claimedTile]
+  playerMelds.value.push({
+    type: claimType.value,
+    tiles: meldTiles
+  })
+
+  playerHand.value = sortTilesById(playerHand.value)
+  clearClaimState()
+}
+
+const skipClaim = () => {
+  clearClaimState()
+}
+
+// ---- self Test Hu ----
+const testSelfHu = () => {
   isWinner.value = true
 }
 
+// ---- other players tests ----
+type Seat = 'north' | 'west' | 'east'
+
+const getSeatState = (seat: Seat) => {
+  if (seat === 'north') {
+    return {
+      hand: northHand,
+      melds: northMelds,
+      discards: northDiscards,
+      isWinner: northIsWinner
+    }
+  }
+  if (seat === 'west') {
+    return {
+      hand: westHand,
+      melds: westMelds,
+      discards: westDiscards,
+      isWinner: westIsWinner
+    }
+  }
+  return {
+    hand: eastHand,
+    melds: eastMelds,
+    discards: eastDiscards,
+    isWinner: eastIsWinner
+  }
+}
+
+const testKongFor = (seat: Seat) => {
+  const s = getSeatState(seat)
+  if (s.hand.value.length < 4) return
+  const taken = s.hand.value.splice(s.hand.value.length - 4, 4)
+  s.melds.value.push({ type: 'kong', tiles: taken })
+}
+
+const testPungFor = (seat: Seat) => {
+  const s = getSeatState(seat)
+  if (s.hand.value.length < 3) return
+  const taken = s.hand.value.splice(s.hand.value.length - 3, 3)
+  s.melds.value.push({ type: 'pung', tiles: taken })
+}
+
+const testHuFor = (seat: Seat) => {
+  const s = getSeatState(seat)
+  s.isWinner.value = true
+}
+
+const testDiscardFor = (seat: Seat) => {
+  const s = getSeatState(seat)
+  if (s.hand.value.length === 0) return
+  const tile = s.hand.value.pop()
+  if (!tile) return
+  s.discards.value.push(tile)
+}
+
+// ---- reset ----
 const resetState = () => {
   if (drawTimeoutId) {
     clearTimeout(drawTimeoutId)
@@ -226,19 +416,27 @@ const resetState = () => {
   playerMelds.value = []
   playerDiscards.value = []
   selectedTileId.value = null
+  justDrawnTileId.value = null
   isWinner.value = false
   drawPile.value = [...drawPileInitial]
 
-  // other players back to default (static for now)
   northHand.value = [...northHandInitial]
   westHand.value = [...westHandInitial]
   eastHand.value = [...eastHandInitial]
+
   northMelds.value = []
   westMelds.value = []
   eastMelds.value = []
+
   northDiscards.value = []
   westDiscards.value = []
   eastDiscards.value = []
+
+  northIsWinner.value = false
+  westIsWinner.value = false
+  eastIsWinner.value = false
+
+  clearClaimState()
 }
 </script>
 
@@ -379,7 +577,10 @@ const resetState = () => {
 
 /* Side panel */
 .side-panel {
-  flex: 0 0 220px;
+  flex: 0 0 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 @media (max-width: 899px) {
@@ -389,7 +590,7 @@ const resetState = () => {
 }
 
 .test-controls {
-  padding: 10px 12px 12px;
+  padding: 8px 10px 10px;
   border-radius: 14px;
   background: rgba(5, 14, 10, 0.9);
 }
@@ -397,6 +598,12 @@ const resetState = () => {
 .panel-title {
   font-size: 0.95rem;
   margin-bottom: 8px;
+  opacity: 0.9;
+}
+
+.panel-subtitle {
+  font-size: 0.85rem;
+  margin-bottom: 6px;
   opacity: 0.9;
 }
 

@@ -1,10 +1,15 @@
-<!-- components/MahjongTile.vue -->
 <template>
   <div
     class="tile"
     :class="[
       `tile--${tile.suit}`,
-      { 'tile--selected': selected, 'tile--dimmed': dimmed, 'tile--small': small }
+      {
+        'tile--selected': selected,
+        'tile--just-drawn': justDrawn,
+        'tile--claim': claimHighlight,
+        'tile--dimmed': dimmed,
+        'tile--small': small
+      }
     ]"
     @click="onClick"
   >
@@ -31,6 +36,8 @@ const props = defineProps<{
   dimmed?: boolean
   small?: boolean
   back?: boolean
+  justDrawn?: boolean
+  claimHighlight?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -60,8 +67,10 @@ const onClick = () => {
     transform 0.12s ease,
     box-shadow 0.12s ease,
     background 0.12s ease,
-    opacity 0.12s ease;
+    opacity 0.12s ease,
+    border-color 0.12s ease;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  user-select: none;
 }
 
 .tile--small {
@@ -94,10 +103,22 @@ const onClick = () => {
   color: #2e7d32;
 }
 
+/* user-selected tile: raised */
 .tile--selected {
   transform: translateY(-6px);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+}
+
+/* newly drawn tile: yellow glow */
+.tile--just-drawn {
   border-color: #ffc107;
+  box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.7);
+}
+
+/* pung/kong candidate or claimable discard: orange glow */
+.tile--claim {
+  border-color: #ff9800;
+  box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.7);
 }
 
 .tile--dimmed {
