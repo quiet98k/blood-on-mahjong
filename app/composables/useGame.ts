@@ -72,7 +72,12 @@ export const useGame = () => {
       // Room Events
       socket.value.on('room:user-joined', (data) => {
         console.log('User joined:', data)
-        // You might want to update a "players in lobby" list here
+        refreshState()
+      })
+
+      socket.value.on('room:user-left', (data) => {
+        console.log('User left:', data)
+        refreshState()
       })
 
       socket.value.on('room:error', (data) => {
@@ -179,7 +184,7 @@ export const useGame = () => {
       })
       
       if (data.value?.success) {
-        updateState(data.value.data)
+        await refreshState()
         // Notify others via socket
         socket.value?.emit('game:state-update', { gameId: gameId.value })
       }
