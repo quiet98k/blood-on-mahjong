@@ -349,6 +349,12 @@ async function handleLeaveRoom(socket: Socket, roomId: string) {
 
       // Clean up empty room
       if (updatedRoom.socketIds.length === 0) {
+        try {
+          await gameManager.endGameForEmptyRoom(roomId)
+        } catch (error) {
+          console.error('Failed to mark game ended for empty room:', error)
+        }
+        console.log(`[room:cleanup] Room ${roomId} empty; deleting state document`)
         await roomStates.deleteOne({ roomId })
       }
     }

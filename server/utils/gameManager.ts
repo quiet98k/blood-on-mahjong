@@ -640,6 +640,24 @@ class GameManager {
     game.phase = GamePhase.ENDED;
   }
 
+  async endGameForEmptyRoom(gameId: string): Promise<void> {
+    await this.hydrateFromDatabase();
+    const game = await this.ensureGameLoaded(gameId);
+    if (!game) return;
+
+    for (const player of game.players) {
+      player.status = PlayerStatus.LOST;
+      player.isTing = false;
+    }
+
+    game.pendingActions = [];
+    game.phase = GamePhase.ENDED;
+    game.lastActionTime = Date.now();
+
+    await this.persistGame(game);
+    this.broadcastGameState(gameId);
+  }
+
   /**
    * List all active games
    */
