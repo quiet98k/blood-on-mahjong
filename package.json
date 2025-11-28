@@ -8,7 +8,10 @@
     "setup": "dotenvx run -- tsx server/utils/setupMongo.ts",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "start": "nuxt start",
+    "test:mock": "node -e \"console.log('FIX ME: placeholder test - replace with real tests')\"",
+    "test": "playwright test"
   },
   "dependencies": {
     "@nuxt/icon": "^2.0.0",
@@ -26,6 +29,8 @@
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.51.0",
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.10.1",
     "tsx": "^4.20.6"
   }
 }

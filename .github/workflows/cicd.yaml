@@ -1,0 +1,68 @@
+name: CI-CD
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+  workflow_dispatch:
+
+# on:
+#   push:
+#     branches: ["ci-cd"]
+#   pull_request:
+#     branches: ["ci-cd"]
+#   workflow_dispatch:
+
+jobs:
+  prod:
+    name: prod
+    runs-on: vcm
+
+    env:
+      WERF_BUILDAH_MODE: auto
+      WERF_KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install werf
+        uses: werf/actions/install@v2
+
+      - name: Deploy with werf
+        run: |
+          source "$(werf ci-env github --as-file)"
+
+          kubectl create secret generic mongodb-uri \
+            --from-literal=uri="${{ secrets.MONGODB_URI }}" \
+            --from-literal=db="${{ secrets.MONGODB_DB }}" \
+            -n blood-on-mahjong-prod \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          werf cr login -u ${{ github.repository_owner }} -p $WERF_REPO_GITHUB_TOKEN ghcr.io
+          werf converge
+        env:
+          WERF_ENV: prod
+          WERF_KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WERF_REPO_GITHUB_TOKEN: ${{ secrets.WERF_REPO_GITHUB_TOKEN }}
+          WERF_BUILDAH_MODE: auto
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install Node & Playwright deps
+        run: |
+          npm ci
+          npx playwright install
+
+      - name: Run tests
+        env:
+          BASE_URL: "http://vcm-51072.vm.duke.edu:31823"
+        run: npm test

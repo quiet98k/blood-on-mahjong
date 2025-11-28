@@ -1,0 +1,12 @@
+configVersion: 1
+project: blood-on-mahjong
+
+deploy:
+  helmRelease: blood-on-mahjong
+  helmChartDir: .helm/blood-on-mahjong
+
+---
+image: blood-on-mahjong
+dockerfile: Dockerfile
+context: .
+

@@ -1,0 +1,29 @@
+name: cleanup
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # Runs at 3 AM every day
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    name: cleanup
+    runs-on: vcm
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch full git history
+        run: git fetch --prune --unshallow
+
+      - name: Install werf
+        uses: werf/actions/install@v2
+
+      - name: Cleanup old images
+        run: |
+          source "$(werf ci-env github --as-file)"
+          werf cr login -u ${{ github.repository_owner }} -p $WERF_REPO_GITHUB_TOKEN ghcr.io
+          werf cleanup
+        env:
+          WERF_KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WERF_REPO_GITHUB_TOKEN: ${{ secrets.REGISTRY_CLEANUP_TOKEN }}
