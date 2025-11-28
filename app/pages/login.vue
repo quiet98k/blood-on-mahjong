@@ -6,10 +6,26 @@
       <p class="mahjong-subtitle">血战到底 · 四川麻将</p>
 
       <p class="mahjong-text">
-        Select a user from the database to sign in:
+        Sign in with your account from the database or through Google OAuth:
       </p>
 
       <div class="login-buttons">
+        <div class="section">
+          <div class="section-header">
+            <span>Google OAuth</span>
+          </div>
+          <button
+            class="mahjong-button oauth-btn"
+            type="button"
+            @click="handleGoogleOAuth"
+            :disabled="isRedirecting"
+          >
+            <span v-if="!isRedirecting">Continue with Google</span>
+            <span v-else>Redirecting…</span>
+          </button>
+          <p v-if="oauthError" class="status-text error">{{ oauthError }}</p>
+        </div>
+
         <div class="section">
           <div class="section-header">
             <span>Players</span>
@@ -57,11 +73,29 @@
 <script setup>
 const { data: usersData, pending: usersPending, error: usersError, refresh } = await useFetch('/api/auth/users')
 
+const handleGoogleOAuth = async () => {
+  if (isRedirecting.value) return
+  oauthError.value = ''
+  isRedirecting.value = true
+
+  try {
+    const response = await $fetch('/api/auth/google/login')
+    if (!response?.authUrl) throw new Error('Missing Google auth URL')
+    window.location.href = response.authUrl
+  } catch (error) {
+    console.error('Failed to start Google OAuth', error)
+    oauthError.value = error?.data?.message || error?.message || 'Unable to start Google login.'
+    isRedirecting.value = false
+  }
+}
+
 const playerUsers = computed(() => (usersData.value?.users || []).filter((u) => !u.isAdmin))
 const adminUsers = computed(() => (usersData.value?.users || []).filter((u) => u.isAdmin))
 
 const isSubmitting = ref(false)
 const loginError = ref('')
+const oauthError = ref('')
+const isRedirecting = ref(false)
 
 const refreshUsers = () => {
   loginError.value = ''
@@ -216,5 +250,10 @@ const handleLogin = async (user) => {
 .mahjong-button:active {
   transform: translateY(1px);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+}
+
+.oauth-btn {
+  background: linear-gradient(135deg, #ffffff, #d4d4d4);
+  color: #0d1b12;
 }
 </style>
