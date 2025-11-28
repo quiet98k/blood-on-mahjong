@@ -30,6 +30,7 @@
       <p class="mahjong-hint">
         New Game will temporarily send you to room <strong>#66666</strong>.
       </p>
+
     </div>
   </div>
 </template>
@@ -67,35 +68,7 @@ const startNewGame = async () => {
   }
 }
 
-const onJoinGame = () => {
-  // For now, prompt for game ID
-  const gameId = prompt('Enter Game ID:')
-  if (gameId) {
-    joinGame(gameId)
-  }
-}
-
-const joinGame = async (gameId) => {
-  try {
-    const { data, error } = await useFetch('/api/game/join', {
-      method: 'POST',
-      body: { gameId, playerName: userName.value || 'Player ' + Math.floor(Math.random() * 1000) }
-    })
-
-    if (error.value) {
-      console.error('Failed to join game:', error.value)
-      alert('Failed to join game: ' + error.value.message)
-      return
-    }
-
-    if (data.value?.success) {
-      const { playerId } = data.value.data
-      return navigateTo(`/gameroom/${gameId}?playerId=${playerId}`)
-    }
-  } catch (e) {
-    console.error('Error joining game:', e)
-  }
-}
+const onJoinGame = () => navigateTo('/join-game')
 
 const onMatchHistory = () => {
   console.log('Match History clicked (not implemented yet)')
@@ -199,4 +172,5 @@ const logout = () => {
   font-size: 0.85rem;
   opacity: 0.85;
 }
+
 </style>
