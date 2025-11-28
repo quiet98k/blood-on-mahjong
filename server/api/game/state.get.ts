@@ -31,19 +31,26 @@ export default defineEventHandler((event) => {
 
   const availableActions = gameManager.getAvailableActions(gameId as string, playerId as string);
 
+  // Ensure isDealer is correctly passed
+  const isDealer = player.isDealer;
+
   return {
     success: true,
     data: {
       game: {
         ...game,
-        // Hide other players' concealed tiles
+        // For debugging/testing: Show all tiles so we can control other players
+        // In production, we should uncomment the hiding logic below
+        /*
         players: game.players.map(p => ({
           ...p,
           hand: {
             ...p.hand,
             concealedTiles: p.id === playerId ? p.hand.concealedTiles : []
-          }
+          },
+          isDealer: p.isDealer
         }))
+        */
       },
       playerView: player.hand,
       availableActions

@@ -83,6 +83,53 @@
 
         <!-- Side controls -->
         <div class="side-panel">
+          <!-- Admin / Dealer Controls -->
+          <div class="test-controls" v-if="canStartGame">
+            <h2 class="panel-title">Room Controls</h2>
+            <button class="mahjong-button panel-button" @click="startGame">
+              Start Game ({{ gameState?.players.length }}/4 Players)
+            </button>
+          </div>
+
+          <div class="test-controls" v-if="isAdmin === 'true'">
+            <h2 class="panel-title">Admin Debug</h2>
+            <p class="panel-subtitle">Game Phase: {{ gameState?.phase }}</p>
+            <p class="panel-subtitle">Players: {{ gameState?.players.length }}</p>
+            
+            <!-- Setup Test Game -->
+            <div v-if="gameState?.phase === 'waiting'">
+              <button 
+                class="mahjong-button panel-button" 
+                @click="setupTestGame"
+                v-if="(gameState?.players.length || 0) < 4"
+              >
+                Add Bots & Start
+              </button>
+            </div>
+
+            <!-- Manual Refresh -->
+            <button class="mahjong-button panel-button small" @click="refreshState">
+              Force Refresh State
+            </button>
+
+            <!-- Control Other Players -->
+            <div v-if="gameState?.phase === 'playing'" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+              <p class="panel-subtitle">Control Others:</p>
+              
+              <div v-for="p in otherPlayers" :key="p.id" style="margin-bottom: 8px;">
+                <p style="font-size: 0.8rem; margin-bottom: 4px;">{{ p.name }} ({{ p.position }})</p>
+                <button 
+                  class="mahjong-button panel-button small"
+                  @click="forceDiscard(p)"
+                  :disabled="gameState?.currentPlayerIndex !== p.position"
+                  :style="gameState?.currentPlayerIndex !== p.position ? { opacity: 0.5 } : {}"
+                >
+                  Discard Random
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="test-controls" v-if="isConnected">
             <h2 class="panel-title">Game Actions</h2>
             
@@ -155,10 +202,13 @@ const {
   error, 
   connect, 
   disconnect, 
-  executeAction 
+  executeAction,
+  startGame,
+  refreshState
 } = useGame()
 
 const backToLobby = () => navigateTo('/')
+const isAdmin = useCookie('is_admin')
 
 onMounted(() => {
   if (roomId.value && playerId.value) {
@@ -187,6 +237,19 @@ const playerHand = computed(() => currentPlayer.value?.hand.concealedTiles || []
 const playerMelds = computed(() => currentPlayer.value?.hand.exposedMelds || [])
 const playerDiscards = computed(() => currentPlayer.value?.hand.discardedTiles || [])
 const isWinner = computed(() => currentPlayer.value?.status === 'won')
+const isDealer = computed(() => currentPlayer.value?.isDealer)
+const canStartGame = computed(() => {
+  // Debug log to see why button might not show
+  console.log('canStartGame check:', {
+    isDealer: isDealer.value,
+    phase: gameState.value?.phase,
+    playerCount: gameState.value?.players.length
+  })
+  
+  return isDealer.value && 
+         gameState.value?.phase === 'waiting' && 
+         (gameState.value?.players.length || 0) >= 2
+})
 
 // ---- Other Players State ----
 const northHand = computed(() => topPlayer.value?.hand.concealedTiles || []) // Will be empty/hidden by backend usually
@@ -284,6 +347,57 @@ const onExtendedKong = () => {
   }
 }
 
+// ---- Admin / Debug Functions ----
+const otherPlayers = computed(() => {
+  if (!gameState.value || !currentPlayer.value) return []
+  return gameState.value.players.filter(p => p.id !== currentPlayer.value!.id)
+})
+
+const setupTestGame = async () => {
+  if (!roomId.value) return
+  
+  // Join 3 bots
+  // We need to know how many players are currently in
+  const currentCount = gameState.value?.players.length || 1
+  
+  for (let i = currentCount + 1; i <= 4; i++) {
+    await useFetch('/api/game/join', {
+      method: 'POST',
+      body: { gameId: roomId.value, playerName: `Bot ${i}` }
+    })
+  }
+  
+  // Refresh to see them
+  await refreshState()
+  
+  // Start Game
+  await startGame()
+  
+  // Refresh again
+  await refreshState()
+}
+
+const forceDiscard = async (p: Player) => {
+  if (!roomId.value || !p.hand.concealedTiles.length) {
+    console.warn('Cannot force discard: No tiles found for player', p.name)
+    return
+  }
+  
+  // Pick first tile
+  const tileId = p.hand.concealedTiles[0].id
+  
+  await useFetch('/api/game/action', {
+    method: 'POST',
+    body: {
+      gameId: roomId.value,
+      playerId: p.id,
+      action: ActionType.DISCARD,
+      tileId
+    }
+  })
+  
+  await refreshState()
+}
 </script>
 
 <style scoped>

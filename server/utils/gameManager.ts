@@ -131,10 +131,13 @@ class GameManager {
     game.players.push(player);
     this.playerToGame.set(playerId, gameId);
 
-    // Start game if we have 4 players
-    if (game.players.length === 4) {
-      this.startGame(gameId);
-    }
+    // Auto-start removed. Use manual start.
+    // if (game.players.length === 4) {
+    //   this.startGame(gameId);
+    // }
+
+    // Broadcast update so lobby sees new player
+    this.broadcastGameState(gameId);
 
     return { playerId, position };
   }
@@ -142,9 +145,13 @@ class GameManager {
   /**
    * Start the game
    */
-  private startGame(gameId: string): void {
+  public startGame(gameId: string): void {
     const game = this.games.get(gameId);
     if (!game) return;
+
+    if (game.players.length < 2) {
+      throw new Error('Need at least 2 players to start');
+    }
 
     game.phase = GamePhase.STARTING;
 

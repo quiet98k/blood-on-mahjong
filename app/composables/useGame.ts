@@ -134,6 +134,28 @@ export const useGame = () => {
     }
   }
 
+  const startGame = async () => {
+    if (!gameId.value || !playerId.value) return
+
+    try {
+      const { error: apiError } = await useFetch('/api/game/start', {
+        method: 'POST',
+        body: {
+          gameId: gameId.value,
+          playerId: playerId.value
+        }
+      })
+
+      if (apiError.value) {
+        throw new Error(apiError.value.message)
+      }
+      // State update will come via WebSocket
+    } catch (e: any) {
+      error.value = e.message || 'Failed to start game'
+      console.error(e)
+    }
+  }
+
   const disconnect = () => {
     if (ws.value) {
       ws.value.close()
@@ -151,6 +173,7 @@ export const useGame = () => {
     connect,
     disconnect,
     executeAction,
-    refreshState
+    refreshState,
+    startGame
   }
 }

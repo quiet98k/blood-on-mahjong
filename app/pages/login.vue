@@ -6,28 +6,70 @@
       <p class="mahjong-subtitle">血战到底 · 四川麻将</p>
 
       <p class="mahjong-text">
-        For now, click the button below to simulate login. We’ll plug in GitHub OAuth later.
+        Select a role to simulate login:
       </p>
 
-      <button class="mahjong-button" @click="handleLogin">
-        Login (Test User)
-      </button>
+      <div class="login-buttons">
+        <button class="mahjong-button admin-btn" @click="handleLogin('Admin', true)">
+          Login as Admin (Debug Mode)
+        </button>
+        
+        <div class="player-buttons">
+          <button class="mahjong-button" @click="handleLogin('Player 1')">
+            Player 1
+          </button>
+          <button class="mahjong-button" @click="handleLogin('Player 2')">
+            Player 2
+          </button>
+          <button class="mahjong-button" @click="handleLogin('Player 3')">
+            Player 3
+          </button>
+          <button class="mahjong-button" @click="handleLogin('Player 4')">
+            Player 4
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-const handleLogin = () => {
-  // Store a dummy auth token in a cookie (Nuxt-idiomatic way)
-  const token = useCookie('auth_token', { maxAge: 60 * 60 * 24 * 7 }) // 7 days
-  token.value = 'dummy-token'
+const handleLogin = (name, isAdmin = false) => {
+  // Store auth token
+  const token = useCookie('auth_token', { maxAge: 60 * 60 * 24 * 7 })
+  token.value = 'dummy-token-' + name
 
-  // Redirect to main room after login
+  // Store user info for simulation
+  const userName = useCookie('user_name')
+  userName.value = name
+  
+  const adminCookie = useCookie('is_admin')
+  adminCookie.value = isAdmin ? 'true' : 'false'
+
+  // Redirect to main room
   return navigateTo('/')
 }
 </script>
 
 <style scoped>
+.login-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.player-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.admin-btn {
+  background: linear-gradient(135deg, #8a1f1f, #c54646);
+  width: 100%;
+}
+
 .mahjong-page {
   min-height: 100vh;
   display: flex;

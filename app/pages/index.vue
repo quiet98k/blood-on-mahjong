@@ -3,7 +3,10 @@
   <div class="mahjong-page">
     <div class="mahjong-card">
       <h1 class="mahjong-title">Waiting Room</h1>
-      <p class="mahjong-subtitle">Welcome back, Mahjong player.</p>
+      <p class="mahjong-subtitle">
+        Welcome back, {{ userName || 'Player' }}.
+        <span v-if="isAdmin === 'true' || isAdmin === true" style="color: #ff6b6b; font-size: 0.8em;">(Admin Mode)</span>
+      </p>
 
       <div class="mahjong-actions">
         <button class="mahjong-button primary" @click="startNewGame">
@@ -32,11 +35,22 @@
 </template>
 
 <script setup>
+const userName = useCookie('user_name')
+const isAdmin = useCookie('is_admin')
+
 const startNewGame = async () => {
+  console.log('Checking Admin Status:', isAdmin.value, typeof isAdmin.value)
+  
+  // Check for string 'true' or boolean true
+  if (isAdmin.value === 'true' || isAdmin.value === true) {
+    console.log('Redirecting to Admin Test Page...')
+    return navigateTo('/admin-test')
+  }
+
   try {
     const { data, error } = await useFetch('/api/game/create', {
       method: 'POST',
-      body: { playerName: 'Player 1' } // TODO: Get real name
+      body: { playerName: userName.value || 'Player 1' }
     })
 
     if (error.value) {
@@ -65,7 +79,7 @@ const joinGame = async (gameId) => {
   try {
     const { data, error } = await useFetch('/api/game/join', {
       method: 'POST',
-      body: { gameId, playerName: 'Player ' + Math.floor(Math.random() * 1000) }
+      body: { gameId, playerName: userName.value || 'Player ' + Math.floor(Math.random() * 1000) }
     })
 
     if (error.value) {
