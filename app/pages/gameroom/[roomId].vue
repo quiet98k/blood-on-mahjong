@@ -21,18 +21,18 @@
             <!-- Center status message -->
             <div class="table-center">
               <p class="status">
-                {{ isWinner ? 'You Won! (Test Hu)' : 'Waiting / Testing Layout' }}
+                <span v-if="isWinner">You Won! 🎉</span>
+                <span v-else>{{ turnMessage }}</span>
               </p>
               <p class="hint">
-                Click tiles to select; click again to discard.
-                1s after discarding, a new tile is drawn.
+                Click tiles to select; click again to discard. Draws happen automatically after each discard.
               </p>
             </div>
 
             <!-- Top player -->
-            <div class="seat seat-top">
+            <div class="seat seat-top" :class="{ 'seat-active': activePosition !== null && topPlayer?.position === activePosition }">
               <PlayerOtherArea
-                name="Player North"
+                :name="topPlayer?.name || 'Player North'"
                 position="top"
                 :hand="northHand"
                 :melds="northMelds"
@@ -42,9 +42,9 @@
             </div>
 
             <!-- Left player -->
-            <div class="seat seat-left">
+            <div class="seat seat-left" :class="{ 'seat-active': activePosition !== null && leftPlayer?.position === activePosition }">
               <PlayerOtherArea
-                name="Player West"
+                :name="leftPlayer?.name || 'Player West'"
                 position="left"
                 :hand="westHand"
                 :melds="westMelds"
@@ -54,9 +54,9 @@
             </div>
 
             <!-- Right player -->
-            <div class="seat seat-right">
+            <div class="seat seat-right" :class="{ 'seat-active': activePosition !== null && rightPlayer?.position === activePosition }">
               <PlayerOtherArea
-                name="Player East"
+                :name="rightPlayer?.name || 'Player East'"
                 position="right"
                 :hand="eastHand"
                 :melds="eastMelds"
@@ -67,7 +67,7 @@
             </div>
 
             <!-- Bottom (self) player -->
-            <div class="seat seat-bottom">
+            <div class="seat seat-bottom" :class="{ 'seat-active': activePosition !== null && currentPlayer?.position === activePosition }">
               <PlayerSelfArea
                 name="You"
                 :hand="playerHand"
@@ -257,6 +257,32 @@ const northMelds = computed(() => topPlayer.value?.hand.exposedMelds || [])
 const northDiscards = computed(() => topPlayer.value?.hand.discardedTiles || [])
 const northIsWinner = computed(() => topPlayer.value?.status === 'won')
 
+const activePosition = computed(() => gameState.value?.currentPlayerIndex ?? null)
+const currentTurnPlayer = computed(() => {
+  if (!gameState.value || activePosition.value === null) return null
+  return gameState.value.players[activePosition.value] || null
+})
+
+const turnMessage = computed(() => {
+  if (!gameState.value) {
+    return 'Loading room…'
+  }
+
+  if (gameState.value.phase === 'waiting') {
+    return 'Waiting for players to start'
+  }
+
+  const player = currentTurnPlayer.value
+  if (player) {
+    if (player.id === currentPlayer.value?.id) {
+      return 'Your turn'
+    }
+    return `${player.name}'s turn`
+  }
+
+  return 'Waiting for next turn'
+})
+
 const westHand = computed(() => leftPlayer.value?.hand.concealedTiles || [])
 const westMelds = computed(() => leftPlayer.value?.hand.exposedMelds || [])
 const westDiscards = computed(() => leftPlayer.value?.hand.discardedTiles || [])
@@ -324,8 +350,9 @@ const onConcealedKong = () => {
   }
   
   for (const key in counts) {
-    if (counts[key].length === 4) {
-      executeAction(ActionType.CONCEALED_KONG, undefined, counts[key].map(t => t.id))
+    const group = counts[key]
+    if (group && group.length === 4) {
+      executeAction(ActionType.CONCEALED_KONG, undefined, group.map(t => t.id))
       return // Just do the first one for now
     }
   }
@@ -335,9 +362,10 @@ const onExtendedKong = () => {
   // Find the tile in hand that matches an exposed triplet
   if (!currentPlayer.value) return
   for (const meld of currentPlayer.value.hand.exposedMelds) {
-    if (meld.type === 'triplet') { // MeldType.TRIPLET
+    if (meld.type === 'triplet' && meld.tiles.length) { // MeldType.TRIPLET
+      const baseTile = meld.tiles[0]!
       const match = currentPlayer.value.hand.concealedTiles.find(t => 
-        t.suit === meld.tiles[0].suit && t.value === meld.tiles[0].value
+        t.suit === baseTile.suit && t.value === baseTile.value
       )
       if (match) {
         executeAction(ActionType.EXTENDED_KONG, match.id)
@@ -384,7 +412,11 @@ const forceDiscard = async (p: Player) => {
   }
   
   // Pick first tile
-  const tileId = p.hand.concealedTiles[0].id
+  const firstTile = p.hand.concealedTiles.at(0)
+  if (!firstTile) {
+    console.warn('Cannot force discard: player has empty hand now', p.name)
+    return
+  }
   
   await useFetch('/api/game/action', {
     method: 'POST',
@@ -392,7 +424,7 @@ const forceDiscard = async (p: Player) => {
       gameId: roomId.value,
       playerId: p.id,
       action: ActionType.DISCARD,
-      tileId
+      tileId: firstTile.id
     }
   })
   
@@ -505,6 +537,12 @@ const forceDiscard = async (p: Player) => {
   display: flex;
   justify-content: center;
   align-items: center;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.seat-active {
+  transform: scale(1.03);
+  filter: drop-shadow(0 0 12px rgba(255, 234, 120, 0.8));
 }
 
 .seat-top {

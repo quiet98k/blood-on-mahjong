@@ -265,39 +265,43 @@ class GameManager {
       return actions;
     }
 
-    // If it's the player's turn and they have 14 tiles (just drew)
-    if (currentPlayer.id === playerId && player.hand.concealedTiles.length === 14) {
-      actions.push(ActionType.DISCARD);
-      
-      // Check for concealed kong
-      const groups = groupTiles(player.hand.concealedTiles);
-      for (const group of groups.values()) {
-        if (group.length === 4) {
-          actions.push(ActionType.CONCEALED_KONG);
-        }
-      }
-
-      // Check for extended kong (if player has exposed triplet and draws the 4th)
-      for (const meld of player.hand.exposedMelds) {
-        if (meld.type === MeldType.TRIPLET) {
-          const hasFourth = player.hand.concealedTiles.some(t => tilesEqual(t, meld.tiles[0]));
-          if (hasFourth) {
-            actions.push(ActionType.EXTENDED_KONG);
-          }
-        }
-      }
-
-      // Check if can win
-      const winCheck = canWin(player.hand.concealedTiles);
-      if (winCheck.canWin) {
-        actions.push(ActionType.HU);
-      }
-    }
-
     // Check pending actions (peng, kong, hu from another player's discard)
     const pendingAction = game.pendingActions.find(pa => pa.playerId === playerId);
     if (pendingAction) {
       return pendingAction.availableActions;
+    }
+
+    // If it's the player's turn and no one else has pending reactions, allow turn actions
+    if (currentPlayer.id === playerId && game.pendingActions.length === 0) {
+      if (player.hand.concealedTiles.length > 0) {
+        actions.push(ActionType.DISCARD);
+      }
+
+      if (player.hand.concealedTiles.length >= 14) {
+        // Check for concealed kong
+        const groups = groupTiles(player.hand.concealedTiles);
+        for (const group of groups.values()) {
+          if (group.length === 4) {
+            actions.push(ActionType.CONCEALED_KONG);
+          }
+        }
+
+        // Check for extended kong (if player has exposed triplet and draws the 4th)
+        for (const meld of player.hand.exposedMelds) {
+          if (meld.type === MeldType.TRIPLET) {
+            const hasFourth = player.hand.concealedTiles.some(t => tilesEqual(t, meld.tiles[0]));
+            if (hasFourth) {
+              actions.push(ActionType.EXTENDED_KONG);
+            }
+          }
+        }
+
+        // Check if can win
+        const winCheck = canWin(player.hand.concealedTiles);
+        if (winCheck.canWin) {
+          actions.push(ActionType.HU);
+        }
+      }
     }
 
     return actions;
