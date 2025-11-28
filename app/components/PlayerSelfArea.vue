@@ -97,6 +97,10 @@ const emit = defineEmits<{
   (e: 'confirmClaim'): void
   (e: 'skipClaim'): void
 }>()
+
+const onTileClick = (tile: Tile) => {
+  emit('tileClick', tile)
+}
 </script>
 
 <style scoped>
