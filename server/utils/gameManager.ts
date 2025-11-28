@@ -260,6 +260,11 @@ class GameManager {
     const actions: ActionType[] = [];
     const currentPlayer = game.players[game.currentPlayerIndex];
 
+    if (!currentPlayer) {
+      // Game might still be in setup; no actions available yet
+      return actions;
+    }
+
     // If it's the player's turn and they have 14 tiles (just drew)
     if (currentPlayer.id === playerId && player.hand.concealedTiles.length === 14) {
       actions.push(ActionType.DISCARD);
@@ -601,11 +606,20 @@ class GameManager {
   }
 
   private moveToNextPlayer(game: GameState): void {
+    if (game.players.length === 0) {
+      throw new Error('No players available to take a turn');
+    }
+
+    let rotations = 0;
     do {
-      game.currentPlayerIndex = (game.currentPlayerIndex + 1) % 4;
+      game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
+      rotations++;
+      if (rotations > game.players.length) {
+        throw new Error('No active players remaining in the round');
+      }
     } while (game.players[game.currentPlayerIndex].status !== PlayerStatus.PLAYING);
 
-    // Draw tile for next player
+    // Draw tile for next player once we have a valid target
     const nextPlayer = game.players[game.currentPlayerIndex];
     this.handleDraw(game, nextPlayer);
   }

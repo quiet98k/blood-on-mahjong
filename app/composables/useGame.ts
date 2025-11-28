@@ -9,6 +9,7 @@ export const useGame = () => {
   const socket = ref<Socket | null>(null)
   const isConnected = ref(false)
   const error = ref<string | null>(null)
+  const isActionPending = ref(false)
 
   const currentPlayer = computed(() => {
     if (!gameState.value || !playerId.value) return null
@@ -18,6 +19,21 @@ export const useGame = () => {
   const playerId = ref<string | null>(null)
   const gameId = ref<string | null>(null)
 
+  const fetchGameState = async (gId: string, pId: string) => {
+    try {
+      const response = await $fetch('/api/game/state', {
+        query: { gameId: gId, playerId: pId },
+        cache: 'no-cache'
+      })
+
+      if ((response as any)?.success) {
+        updateState((response as any).data)
+      }
+    } catch (e) {
+      console.error('Failed to fetch game state:', e)
+    }
+  }
+
   const connect = async (gId: string, pId: string) => {
     gameId.value = gId
     playerId.value = pId
@@ -25,13 +41,7 @@ export const useGame = () => {
 
     try {
       // Fetch initial state (optional, but good for immediate render)
-      const { data } = await useFetch('/api/game/state', {
-        query: { gameId: gId, playerId: pId }
-      })
-
-      if (data.value?.success) {
-        updateState(data.value.data)
-      }
+      await fetchGameState(gId, pId)
 
       // Connect Socket.IO
       // Use default transports (polling first) to avoid websocket connection errors in some envs
@@ -70,9 +80,14 @@ export const useGame = () => {
       })
 
       // Room Events
-      socket.value.on('room:user-joined', (data) => {
+      socket.value.on('room:user-joined', async (data) => {
         console.log('User joined:', data)
-        // You might want to update a "players in lobby" list here
+        await refreshState()
+      })
+
+      socket.value.on('room:user-left', async (data) => {
+        console.log('User left:', data)
+        await refreshState()
       })
 
       socket.value.on('room:error', (data) => {
@@ -81,16 +96,14 @@ export const useGame = () => {
       })
 
       // Game Events
-      socket.value.on('game:state-changed', (data) => {
+      socket.value.on('game:state-changed', async (data) => {
         console.log('Game state update:', data)
-        // Ideally data contains the full state or we fetch it
-        refreshState()
+        await refreshState()
       })
 
-      socket.value.on('game:action-received', (data) => {
+      socket.value.on('game:action-received', async (data) => {
         console.log('Action received:', data)
-        // Refresh state to see the result of the action
-        refreshState()
+        await refreshState()
       })
 
     } catch (e: any) {
@@ -109,13 +122,7 @@ export const useGame = () => {
   const refreshState = async () => {
     if (!gameId.value || !playerId.value) return
 
-    const { data } = await useFetch('/api/game/state', {
-      query: { gameId: gameId.value, playerId: playerId.value }
-    })
-
-    if (data.value?.success) {
-      updateState(data.value.data)
-    }
+    await fetchGameState(gameId.value, playerId.value)
   }
 
   const updateState = (data: any) => {
@@ -124,8 +131,10 @@ export const useGame = () => {
     availableActions.value = data.availableActions
   }
 
-  const executeAction = async (action: ActionType, tileId?: string) => {
+  const executeAction = async (action: ActionType, tileId?: string, tileIds?: string[]) => {
     if (!gameId.value || !playerId.value) return
+    if (isActionPending.value) return
+    isActionPending.value = true
 
     // Optimistic update or just send to server
     // We can use socket to send action for faster response
@@ -134,7 +143,8 @@ export const useGame = () => {
         gameId: gameId.value,
         playerId: playerId.value,
         type: action,
-        tileId
+        tileId,
+        tileIds
       })
     }
 
@@ -152,7 +162,8 @@ export const useGame = () => {
           gameId: gameId.value,
           playerId: playerId.value,
           type: action,
-          tileId
+          tileId,
+          tileIds
         }
       })
 
@@ -163,9 +174,12 @@ export const useGame = () => {
 
       if (data.value?.success) {
         updateState(data.value.data)
+        await refreshState()
       }
     } catch (e) {
       console.error('Error executing action:', e)
+    } finally {
+      isActionPending.value = false
     }
   }
 
@@ -179,7 +193,7 @@ export const useGame = () => {
       })
       
       if (data.value?.success) {
-        updateState(data.value.data)
+        await refreshState()
         // Notify others via socket
         socket.value?.emit('game:state-update', { gameId: gameId.value })
       }
@@ -198,6 +212,7 @@ export const useGame = () => {
     disconnect,
     executeAction,
     startGame,
-    refreshState
+    refreshState,
+    isActionPending
   }
 }
