@@ -56,6 +56,7 @@ export interface Player {
   winOrder: number | null;
   winRound: number | null;
   winTimestamp: number | null;
+  score: number;
 }
 
 // Game actions
@@ -127,6 +128,7 @@ export interface GameState {
   endedAt?: number;
   finalScores?: Record<string, number>;
   pendingActions: PendingAction[]; // Actions waiting for player response
+  customScoringMode?: 'cheat' | null;
 }
 
 export interface PendingAction {

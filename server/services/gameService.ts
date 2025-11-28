@@ -33,7 +33,11 @@ export class GameService {
       missingSuit: null,
       windScore: 0,
       rainScore: 0,
-      wonFan: 0
+      wonFan: 0,
+      winOrder: null,
+      winRound: null,
+      winTimestamp: null,
+      score: 0
     }));
 
     // Dealer draws 14th tile

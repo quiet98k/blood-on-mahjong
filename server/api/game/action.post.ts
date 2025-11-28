@@ -42,6 +42,7 @@ export default defineEventHandler(async (event) => {
         status: p.status,
         windScore: p.windScore,
         rainScore: p.rainScore,
+        score: p.score,
         handSize: p.hand.concealedTiles.length
       })),
       lastAction: {

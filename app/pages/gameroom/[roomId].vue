@@ -333,7 +333,7 @@ const playerResults = computed(() => {
   return [...gameState.value.players]
     .map((player) => {
       const isWinner = player.status === 'won'
-      const finalScore = gameState.value?.finalScores?.[player.id] ?? null
+      const finalScore = player.score ?? gameState.value?.finalScores?.[player.id] ?? null
       return {
         id: player.id,
         name: player.name,

@@ -38,6 +38,7 @@
 <script setup>
 const userName = useCookie('user_name')
 const isAdmin = useCookie('is_admin')
+const router = useRouter()
 
 const startNewGame = async () => {
   console.log('Checking Admin Status:', isAdmin.value, typeof isAdmin.value)
@@ -67,7 +68,7 @@ const startNewGame = async () => {
 
 const onJoinGame = () => navigateTo('/join-game')
 
-const onMatchHistory = () => navigateTo('/history')
+const onMatchHistory = () => router.push('/history')
 
 // 🔥 Logout logic: wipe auth token + redirect
 const logout = () => {

@@ -50,8 +50,8 @@
                     {{ player.status === 'won' ? 'Winner' : 'Participant' }} · Seat {{ player.position + 1 }}
                   </p>
                 </div>
-                <div class="player-score" :class="scoreClass(player.finalScore)">
-                  {{ formatScore(player.finalScore) }}
+                <div class="player-score" :class="scoreClass(player.finalScore ?? match.finalScores?.[player.playerId] ?? 0)">
+                  {{ formatScore(player.finalScore ?? match.finalScores?.[player.playerId] ?? 0) }}
                 </div>
               </li>
             </ul>
@@ -87,6 +87,7 @@ interface MatchHistoryItem {
   roundNumber: number
   completedAt: string | Date
   durationMs: number
+  finalScores?: Record<string, number>
   results: MatchHistoryResult[]
 }
 

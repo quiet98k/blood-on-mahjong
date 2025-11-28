@@ -1,6 +1,7 @@
 import { getCollection } from '../utils/mongo';
 import type { MatchHistory } from '../types/database';
-import type { GameState, GameEndReason } from '../types/game';
+import { calculateGameResult } from '../utils/scoring';
+import { PlayerStatus, type GameState, type GameEndReason } from '../types/game';
 
 export class MatchHistoryService {
   private static COLLECTION_NAME = 'matchHistory';
@@ -13,6 +14,17 @@ export class MatchHistoryService {
     const collection = await getCollection<MatchHistory>(this.COLLECTION_NAME);
     const completedAtMs = game.endedAt ?? Date.now();
 
+    const winners = game.players.filter(player => player.status === PlayerStatus.WON);
+
+    const computedScores:
+      | Record<string, number>
+      | undefined = game.customScoringMode === 'cheat'
+        ? game.players.reduce<Record<string, number>>((acc, player) => {
+            acc[player.id] = winners.some(w => w.id === player.id) ? 1 : -1;
+            return acc;
+          }, {})
+        : calculateGameResult(game.players, winners);
+
     const history: MatchHistory = {
       gameId: game.gameId,
       roomId: game.gameId,
@@ -21,6 +33,7 @@ export class MatchHistoryService {
       roundNumber: game.roundNumber,
       completedAt: new Date(completedAtMs),
       durationMs: Math.max(completedAtMs - game.createdAt, 0),
+      finalScores: finalScores ?? computedScores,
       results: game.players.map((player) => ({
         playerId: player.id,
         name: player.name,
@@ -32,7 +45,8 @@ export class MatchHistoryService {
         wonFan: player.wonFan,
         windScore: player.windScore,
         rainScore: player.rainScore,
-        finalScore: finalScores[player.id] ?? 0
+        finalScore:
+          player.score ?? finalScores[player.id] ?? computedScores?.[player.id] ?? 0
       }))
     };
 

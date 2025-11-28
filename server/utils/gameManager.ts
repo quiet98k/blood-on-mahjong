@@ -107,7 +107,8 @@ class GameManager {
       wonFan: 0,
       winOrder: null,
       winRound: null,
-      winTimestamp: null
+      winTimestamp: null,
+      score: 0
     };
 
     const game: GameState = {
@@ -125,6 +126,7 @@ class GameManager {
       createdAt: Date.now(),
       lastActionTime: Date.now(),
       endedAt: undefined,
+      customScoringMode: null,
       finalScores: undefined,
       pendingActions: []
     };
@@ -177,7 +179,8 @@ class GameManager {
       wonFan: 0,
       winOrder: null,
       winRound: null,
-      winTimestamp: null
+      winTimestamp: null,
+      score: 0
     };
 
     game.players.push(player);
@@ -212,6 +215,7 @@ class GameManager {
     game.endReason = null;
     game.endedAt = undefined;
     game.finalScores = undefined;
+    game.customScoringMode = null;
 
     // Create and shuffle deck
     const deck = createDeck();
@@ -226,6 +230,7 @@ class GameManager {
       }
       player.hand.concealedTiles = sortTiles(player.hand.concealedTiles);
       player.status = PlayerStatus.PLAYING;
+      player.score = 0;
     }
 
     // Dealer draws first tile
@@ -238,6 +243,7 @@ class GameManager {
       player.winRound = null;
       player.winTimestamp = null;
       player.wonFan = 0;
+      player.score = 0;
     }
 
     game.currentPlayerIndex = game.dealerIndex;
@@ -406,6 +412,8 @@ class GameManager {
     player.hand.concealedTiles = removeTile(player.hand.concealedTiles, tileId);
     player.hand.discardedTiles.push(tile);
     game.discardPile.push(tile);
+
+    this.updateRoundNumber(game);
 
     // Check if player is missing one suit after discard
     const missing = isMissingOneSuit(player.hand.concealedTiles);
@@ -635,14 +643,9 @@ class GameManager {
     player.winTimestamp = Date.now();
     player.wonFan = 1; // Testing shortcut awards 1 fan (score +1)
     game.winnersCount++;
+    game.customScoringMode = 'cheat';
 
-    const remainingActive = game.players.filter(p => p.status === PlayerStatus.PLAYING).length;
-    if (remainingActive <= 1) {
-      this.endRound(game, GameEndReason.LAST_PLAYER);
-      return;
-    }
-
-    this.moveToNextPlayer(game);
+    this.endRound(game, GameEndReason.LAST_PLAYER);
   }
 
   private handlePass(game: GameState, player: Player): void {
@@ -716,13 +719,40 @@ class GameManager {
     this.handleDraw(game, nextPlayer);
   }
 
+  private updateRoundNumber(game: GameState): void {
+    const playerCount = game.players.length || 1;
+    const discardCount = game.discardPile.length;
+    const calculatedRound = Math.max(1, Math.ceil(discardCount / playerCount));
+    game.roundNumber = calculatedRound;
+  }
+
   private endRound(game: GameState, reason: GameEndReason): void {
     game.phase = GamePhase.CHA_JIAO;
 
     // Calculate final scores
     const winners = game.players.filter(p => p.status === PlayerStatus.WON);
-    const finalScores = calculateGameResult(game.players, winners);
+      const winnerIds = new Set(winners.map(w => w.id));
+      for (const player of game.players) {
+        if (!winnerIds.has(player.id)) {
+          player.status = PlayerStatus.LOST;
+        }
+      }
+    let finalScores: Record<string, number>;
+
+    if (game.customScoringMode === 'cheat') {
+      finalScores = {};
+      for (const player of game.players) {
+        const isWinner = winners.some(w => w.id === player.id);
+        finalScores[player.id] = isWinner ? 1 : -1;
+      }
+    } else {
+      finalScores = calculateGameResult(game.players, winners);
+    }
+
     game.finalScores = finalScores;
+    for (const player of game.players) {
+      player.score = finalScores[player.id] ?? 0;
+    }
 
     // TODO: Store results and prepare for next round
 
@@ -732,6 +762,7 @@ class GameManager {
     game.pendingActions = [];
     game.endedAt = endedAt;
     game.lastActionTime = endedAt;
+    game.customScoringMode = null;
 
     MatchHistoryService.recordMatch(game, finalScores, reason).catch((error) => {
       console.error('Failed to persist match history:', error);
@@ -743,8 +774,16 @@ class GameManager {
     const game = await this.ensureGameLoaded(gameId);
     if (!game) return;
 
+    if (game.phase === GamePhase.ENDED) {
+      game.endReason = reason;
+      await this.persistGame(game);
+      return;
+    }
+
     for (const player of game.players) {
-      player.status = PlayerStatus.LOST;
+      if (player.status !== PlayerStatus.WON) {
+        player.status = PlayerStatus.LOST;
+      }
       player.isTing = false;
     }
 

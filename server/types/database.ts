@@ -67,6 +67,7 @@ export interface MahjongGame {
   updatedAt: Date;
   endedAt?: Date;
   finalScores?: Record<string, number>;
+  customScoringMode?: 'cheat' | null;
   pendingActions?: PendingAction[];
 }
 
@@ -89,6 +90,7 @@ export interface GamePlayer {
   winOrder: number | null;
   winRound: number | null;
   winTimestamp: number | null;
+  score: number;
 }
 
 export interface StoredTile {
@@ -160,6 +162,7 @@ export interface MatchHistory {
   roundNumber: number;
   completedAt: Date;
   durationMs: number;
+  finalScores?: Record<string, number>;
   results: MatchHistoryResult[];
 }
 
