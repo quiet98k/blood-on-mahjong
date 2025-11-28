@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Socket.IO Test - Mahjong Multiplayer</title>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 2px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    .connected {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .disconnected {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+      border: none;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    .users-list {
+      list-style: none;
+      padding: 0;
+    }
+    .users-list li {
+      padding: 8px;
+      margin: 5px 0;
+      background-color: #e8f5e9;
+      border-radius: 4px;
+    }
+    .logs {
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 10px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .log-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-left: 3px solid #4CAF50;
+      background-color: white;
+    }
+    .chat-messages {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin: 10px 0;
+      background-color: #fafafa;
+    }
+    .chat-message {
+      margin: 5px 0;
+      padding: 8px;
+      background-color: white;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎴 Socket.IO Mahjong Multiplayer Test</h1>
+    
+    <div id="status" class="status disconnected">
+      ❌ Disconnected
+    </div>
+
+    <div class="section">
+      <h3>1. Connect & Authenticate</h3>
+      <input type="text" id="userId" placeholder="User ID (e.g., user1)" value="user1">
+      <input type="text" id="userName" placeholder="User Name (e.g., Player 1)" value="Player 1">
+      <button id="connectBtn" onclick="connectSocket()">Connect</button>
+      <button id="disconnectBtn" onclick="disconnectSocket()" disabled>Disconnect</button>
+    </div>
+
+    <div class="section">
+      <h3>2. Join Room</h3>
+      <input type="text" id="roomId" placeholder="Room ID (e.g., room-test)" value="room-test">
+      <button id="joinRoomBtn" onclick="joinRoom()" disabled>Join Room</button>
+      <button id="leaveRoomBtn" onclick="leaveRoom()" disabled>Leave Room</button>
+      
+      <div style="margin-top: 15px;">
+        <strong>Room Users (<span id="userCount">0</span>/4):</strong>
+        <ul id="usersList" class="users-list"></ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>3. Game Actions</h3>
+      <button onclick="sendGameAction('draw')">Draw Tile</button>
+      <button onclick="sendGameAction('discard')">Discard Tile</button>
+      <button onclick="sendGameAction('peng')">Peng</button>
+      <button onclick="sendGameAction('hu')">Hu (Win)</button>
+      <button onclick="setReady()">Toggle Ready</button>
+    </div>
+
+    <div class="section">
+      <h3>4. Chat</h3>
+      <div id="chatMessages" class="chat-messages"></div>
+      <input type="text" id="chatInput" placeholder="Type a message..." style="width: 70%;">
+      <button onclick="sendChat()">Send</button>
+    </div>
+
+    <div class="section">
+      <h3>Event Logs</h3>
+      <button onclick="clearLogs()">Clear Logs</button>
+      <div id="logs" class="logs"></div>
+    </div>
+  </div>
+
+  <script>
+    let socket = null;
+    let isReady = false;
+
+    function log(message, data = null) {
+      const logs = document.getElementById('logs');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+      if (data) {
+        entry.innerHTML += `<br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+      }
+      logs.appendChild(entry);
+      logs.scrollTop = logs.scrollHeight;
+    }
+
+    function updateStatus(connected) {
+      const status = document.getElementById('status');
+      status.className = connected ? 'status connected' : 'status disconnected';
+      status.textContent = connected ? '✅ Connected' : '❌ Disconnected';
+      
+      document.getElementById('connectBtn').disabled = connected;
+      document.getElementById('disconnectBtn').disabled = !connected;
+      document.getElementById('joinRoomBtn').disabled = !connected;
+    }
+
+    function connectSocket() {
+      const userId = document.getElementById('userId').value;
+      const userName = document.getElementById('userName').value;
+
+      if (!userId || !userName) {
+        alert('Please enter User ID and Name');
+        return;
+      }
+
+      socket = io('http://localhost:3000', {
+        transports: ['websocket', 'polling']
+      });
+
+      socket.on('connect', () => {
+        log('Connected to server', { socketId: socket.id });
+        updateStatus(true);
+        
+        // Authenticate
+        socket.emit('auth:login', { userId, userName });
+      });
+
+      socket.on('auth:success', (data) => {
+        log('Authentication successful', data);
+      });
+
+      socket.on('disconnect', (reason) => {
+        log('Disconnected from server', { reason });
+        updateStatus(false);
+        document.getElementById('leaveRoomBtn').disabled = true;
+      });
+
+      socket.on('room:user-joined', (data) => {
+        log('User joined room', data);
+        updateUsersList(data.roomUsers);
+        document.getElementById('userCount').textContent = data.playerCount;
+        document.getElementById('leaveRoomBtn').disabled = false;
+      });
+
+      socket.on('room:user-left', (data) => {
+        log('User left room', data);
+        updateUsersList(data.roomUsers);
+        document.getElementById('userCount').textContent = data.playerCount;
+      });
+
+      socket.on('room:error', (data) => {
+        log('Room error', data);
+        alert(data.message);
+      });
+
+      socket.on('game:action-received', (data) => {
+        log('Game action received', data);
+      });
+
+      socket.on('game:state-changed', (data) => {
+        log('Game state changed', data);
+      });
+
+      socket.on('player:ready-changed', (data) => {
+        log('Player ready status changed', data);
+      });
+
+      socket.on('chat:message-received', (data) => {
+        log('Chat message received', data);
+        addChatMessage(data);
+      });
+    }
+
+    function disconnectSocket() {
+      if (socket) {
+        socket.disconnect();
+        socket = null;
+        updateStatus(false);
+        document.getElementById('leaveRoomBtn').disabled = true;
+      }
+    }
+
+    function joinRoom() {
+      if (!socket) return;
+
+      const roomId = document.getElementById('roomId').value;
+      const userId = document.getElementById('userId').value;
+      const userName = document.getElementById('userName').value;
+
+      if (!roomId) {
+        alert('Please enter Room ID');
+        return;
+      }
+
+      socket.emit('room:join', { roomId, userId, userName });
+      log('Joining room', { roomId });
+    }
+
+    function leaveRoom() {
+      if (!socket) return;
+
+      const roomId = document.getElementById('roomId').value;
+      socket.emit('room:leave', { roomId });
+      log('Leaving room', { roomId });
+      document.getElementById('leaveRoomBtn').disabled = true;
+      document.getElementById('usersList').innerHTML = '';
+      document.getElementById('userCount').textContent = '0';
+    }
+
+    function sendGameAction(action) {
+      if (!socket) {
+        alert('Please connect first');
+        return;
+      }
+
+      const data = {
+        type: action,
+        data: { tileId: 'tile-' + Math.floor(Math.random() * 100) }
+      };
+
+      socket.emit('game:action', data);
+      log('Sent game action', data);
+    }
+
+    function setReady() {
+      if (!socket) return;
+
+      isReady = !isReady;
+      socket.emit('player:ready', { isReady });
+      log('Set ready status', { isReady });
+    }
+
+    function sendChat() {
+      if (!socket) return;
+
+      const input = document.getElementById('chatInput');
+      const message = input.value.trim();
+
+      if (!message) return;
+
+      socket.emit('chat:message', { message });
+      input.value = '';
+      log('Sent chat message', { message });
+    }
+
+    function addChatMessage(data) {
+      const chatMessages = document.getElementById('chatMessages');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'chat-message';
+      msgDiv.innerHTML = `<strong>${data.userName}:</strong> ${data.message}`;
+      chatMessages.appendChild(msgDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function updateUsersList(users) {
+      const usersList = document.getElementById('usersList');
+      usersList.innerHTML = '';
+
+      users.forEach(user => {
+        const li = document.createElement('li');
+        li.textContent = `${user.userName} (${user.userId})`;
+        usersList.appendChild(li);
+      });
+    }
+
+    function clearLogs() {
+      document.getElementById('logs').innerHTML = '';
+    }
+
+    // Allow Enter key to send chat
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('chatInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          sendChat();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
