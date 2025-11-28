@@ -19,6 +19,20 @@
           <div class="game-over-card">
             <p class="overlay-title">{{ overlayTitle }}</p>
             <p class="overlay-message">{{ overlayMessage }}</p>
+            <ul v-if="playerResults.length" class="overlay-results">
+              <li v-for="player in playerResults" :key="player.id" class="overlay-result-item">
+                <div>
+                  <span class="result-rank" :class="{ 'rank-winner': player.isWinner }">{{ player.rankLabel }}</span>
+                  <span class="result-name">{{ player.name }}</span>
+                </div>
+                <div class="result-meta">
+                  <span class="result-score" :class="player.scoreClass">{{ player.scoreLabel }}</span>
+                  <span class="result-status">{{ player.statusLabel }}</span>
+                  <span v-if="player.winRoundLabel" class="result-round">{{ player.winRoundLabel }}</span>
+                </div>
+              </li>
+            </ul>
+            <p v-else class="overlay-empty">Standings will appear once the server finalizes results.</p>
             <button class="mahjong-button primary overlay-button" @click="backToLobby">
               Exit to Lobby
             </button>
@@ -179,6 +193,19 @@
               </button>
             </div>
 
+            <div class="cheat-actions">
+              <button 
+                class="mahjong-button panel-button" 
+                @click="onCheatHu" 
+                :disabled="isInteractionLocked || !canCheatHu"
+              >
+                Cheat Hu (+1)
+              </button>
+              <p class="panel-subtitle" style="margin-top: 4px; opacity: 0.65;">
+                Testing only · enabled on your turn
+              </p>
+            </div>
+
             <div v-if="!showPeng && !showKong && !showHu && !showPass && !showConcealedKong && !showExtendedKong">
               <p class="panel-subtitle">Waiting for others...</p>
             </div>
@@ -274,6 +301,62 @@ const overlayMessage = computed(() => {
   }
 })
 const isInteractionLocked = computed(() => isOverlayVisible.value)
+
+const formatOrdinal = (value: number | null | undefined) => {
+  if (!value) return null
+  const suffix = value % 10 === 1 && value % 100 !== 11
+    ? 'st'
+    : value % 10 === 2 && value % 100 !== 12
+      ? 'nd'
+      : value % 10 === 3 && value % 100 !== 13
+        ? 'rd'
+        : 'th'
+  return `${value}${suffix}`
+}
+
+const formatScore = (value: number | null | undefined) => {
+  if (value === null || value === undefined) return '--'
+  const sign = value > 0 ? '+' : ''
+  return `${sign}${value}`
+}
+
+const getScoreClass = (value: number | null | undefined) => {
+  if (value === null || value === undefined) return 'score-neutral'
+  if (value > 0) return 'score-positive'
+  if (value < 0) return 'score-negative'
+  return 'score-neutral'
+}
+
+const playerResults = computed(() => {
+  if (!gameState.value) return []
+
+  return [...gameState.value.players]
+    .map((player) => {
+      const isWinner = player.status === 'won'
+      const finalScore = gameState.value?.finalScores?.[player.id] ?? null
+      return {
+        id: player.id,
+        name: player.name,
+        isWinner,
+        winOrder: player.winOrder,
+        rankLabel: isWinner && player.winOrder ? formatOrdinal(player.winOrder) : 'Did not win',
+        statusLabel: isWinner ? 'Winner' : player.status === 'lost' ? 'Lost' : 'Not won',
+        winRoundLabel: isWinner && player.winRound ? `Round ${player.winRound}` : null,
+        scoreLabel: formatScore(finalScore),
+        scoreClass: getScoreClass(finalScore)
+      }
+    })
+    .sort((a, b) => {
+      if (a.isWinner && !b.isWinner) return -1
+      if (!a.isWinner && b.isWinner) return 1
+      if (a.isWinner && b.isWinner) {
+        const orderA = a.winOrder ?? Number.MAX_SAFE_INTEGER
+        const orderB = b.winOrder ?? Number.MAX_SAFE_INTEGER
+        return orderA - orderB
+      }
+      return a.name.localeCompare(b.name)
+    })
+})
 const canStartGame = computed(() => {
   // Debug log to see why button might not show
   console.log('canStartGame check:', {
@@ -361,11 +444,14 @@ const showPeng = computed(() => availableActions.value.includes(ActionType.PENG)
 const showKong = computed(() => availableActions.value.includes(ActionType.KONG))
 const showHu = computed(() => availableActions.value.includes(ActionType.HU))
 const showPass = computed(() => availableActions.value.includes(ActionType.PASS))
+const isMyTurn = computed(() => currentTurnPlayer.value?.id === currentPlayer.value?.id)
+const canCheatHu = computed(() => isMyTurn.value && gameState.value?.phase === GamePhase.PLAYING)
 
 const onPeng = () => executeAction(ActionType.PENG)
 const onKong = () => executeAction(ActionType.KONG)
 const onHu = () => executeAction(ActionType.HU)
 const onPass = () => executeAction(ActionType.PASS)
+const onCheatHu = () => executeAction(ActionType.CHEAT_HU)
 
 // For self-drawn Kong (Concealed or Extended)
 const showConcealedKong = computed(() => availableActions.value.includes(ActionType.CONCEALED_KONG))
@@ -725,5 +811,96 @@ const forceDiscard = async (p: Player) => {
 
 .overlay-button {
   width: 100%;
+}
+
+.overlay-results {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.overlay-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.result-rank {
+  font-weight: 600;
+  margin-right: 8px;
+  color: #d5d5d5;
+}
+
+.rank-winner {
+  color: #ffe27a;
+}
+
+.result-name {
+  font-weight: 500;
+}
+
+.result-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+}
+
+.result-score {
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.score-positive {
+  color: #5fffb0;
+  background: rgba(95, 255, 176, 0.12);
+}
+
+.score-negative {
+  color: #ff9d9d;
+  background: rgba(255, 157, 157, 0.12);
+}
+
+.score-neutral {
+  color: #f5f5f5;
+}
+
+.result-status,
+.result-round {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.overlay-empty {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin-bottom: 20px;
+}
+
+.result-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.result-status {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.result-round {
+  font-size: 0.8rem;
+  color: #9ed3b4;
 }
 </style>

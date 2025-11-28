@@ -66,6 +66,7 @@ export interface MahjongGame {
   lastActionTime: Date;
   updatedAt: Date;
   endedAt?: Date;
+  finalScores?: Record<string, number>;
   pendingActions?: PendingAction[];
 }
 
@@ -85,6 +86,9 @@ export interface GamePlayer {
   windScore: number; // Kong scores (刮风)
   rainScore: number; // Concealed kong scores (下雨)
   wonFan: number;
+  winOrder: number | null;
+  winRound: number | null;
+  winTimestamp: number | null;
 }
 
 export interface StoredTile {
@@ -142,6 +146,35 @@ export interface FanDetail {
   fanTypes: string[];
   score: number;
   isSelfDrawn: boolean;
+}
+
+/**
+ * Match History Collection - Lightweight completed match records
+ */
+export interface MatchHistory {
+  _id?: ObjectId;
+  gameId: string;
+  roomId: string;
+  endReason: string | null;
+  winnersCount: number;
+  roundNumber: number;
+  completedAt: Date;
+  durationMs: number;
+  results: MatchHistoryResult[];
+}
+
+export interface MatchHistoryResult {
+  playerId: string;
+  name: string;
+  position: number;
+  status: 'waiting' | 'playing' | 'won' | 'lost';
+  winOrder: number | null;
+  winRound: number | null;
+  winTimestamp: number | null;
+  wonFan: number;
+  windScore: number;
+  rainScore: number;
+  finalScore: number;
 }
 
 /**

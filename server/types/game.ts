@@ -53,6 +53,9 @@ export interface Player {
   windScore: number; // Kong scores (刮风)
   rainScore: number; // Concealed kong scores (下雨)
   wonFan: number; // Fan count when won
+  winOrder: number | null;
+  winRound: number | null;
+  winTimestamp: number | null;
 }
 
 // Game actions
@@ -64,7 +67,8 @@ export enum ActionType {
   EXTENDED_KONG = 'extended_kong', // 续杠
   CONCEALED_KONG = 'concealed_kong',
   HU = 'hu',
-  PASS = 'pass'
+  PASS = 'pass',
+  CHEAT_HU = 'cheat_hu'
 }
 
 export interface GameAction {
@@ -121,6 +125,7 @@ export interface GameState {
   createdAt: number;
   lastActionTime: number;
   endedAt?: number;
+  finalScores?: Record<string, number>;
   pendingActions: PendingAction[]; // Actions waiting for player response
 }
 

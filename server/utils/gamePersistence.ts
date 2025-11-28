@@ -59,7 +59,10 @@ const playerToStored = (player: Player): GamePlayer => ({
   missingSuit: player.missingSuit,
   windScore: player.windScore,
   rainScore: player.rainScore,
-  wonFan: player.wonFan
+  wonFan: player.wonFan,
+  winOrder: player.winOrder,
+  winRound: player.winRound,
+  winTimestamp: player.winTimestamp
 })
 
 const storedToPlayer = (player: GamePlayer): Player => ({
@@ -77,7 +80,10 @@ const storedToPlayer = (player: GamePlayer): Player => ({
   missingSuit: player.missingSuit ?? null,
   windScore: player.windScore,
   rainScore: player.rainScore,
-  wonFan: player.wonFan
+  wonFan: player.wonFan,
+  winOrder: player.winOrder ?? null,
+  winRound: player.winRound ?? null,
+  winTimestamp: player.winTimestamp ?? null
 })
 
 const actionToStored = (action: GameAction): StoredGameAction => ({
@@ -113,6 +119,7 @@ const gameStateToDocument = (game: GameState): PersistedMahjongGame => ({
   lastActionTime: new Date(game.lastActionTime),
   updatedAt: new Date(),
   endedAt: game.endedAt ? new Date(game.endedAt) : undefined,
+  finalScores: game.finalScores,
   pendingActions: game.pendingActions
 })
 
@@ -131,6 +138,7 @@ const documentToGameState = (doc: PersistedMahjongGame): GameState => ({
   createdAt: doc.createdAt.getTime(),
   lastActionTime: doc.lastActionTime.getTime(),
   endedAt: doc.endedAt ? doc.endedAt.getTime() : undefined,
+  finalScores: doc.finalScores,
   pendingActions: doc.pendingActions ?? []
 })
 

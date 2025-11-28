@@ -67,9 +67,7 @@ const startNewGame = async () => {
 
 const onJoinGame = () => navigateTo('/join-game')
 
-const onMatchHistory = () => {
-  console.log('Match History clicked (not implemented yet)')
-}
+const onMatchHistory = () => navigateTo('/history')
 
 // 🔥 Logout logic: wipe auth token + redirect
 const logout = () => {

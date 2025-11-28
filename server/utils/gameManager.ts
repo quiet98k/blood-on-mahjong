@@ -17,6 +17,7 @@ import { canWin, isTing } from './handValidator';
 import { calculateFan, calculateWinningScore, calculateKongScore, calculateGameResult } from './scoring';
 import { randomUUID } from 'crypto';
 import { saveGameState, loadGameState, loadAllGameStates, deleteGameState } from './gamePersistence';
+import { MatchHistoryService } from '../services/matchHistoryService';
 
 /**
  * In-memory game state manager
@@ -103,7 +104,10 @@ class GameManager {
       missingSuit: null,
       windScore: 0,
       rainScore: 0,
-      wonFan: 0
+      wonFan: 0,
+      winOrder: null,
+      winRound: null,
+      winTimestamp: null
     };
 
     const game: GameState = {
@@ -121,6 +125,7 @@ class GameManager {
       createdAt: Date.now(),
       lastActionTime: Date.now(),
       endedAt: undefined,
+      finalScores: undefined,
       pendingActions: []
     };
 
@@ -169,7 +174,10 @@ class GameManager {
       missingSuit: null,
       windScore: 0,
       rainScore: 0,
-      wonFan: 0
+      wonFan: 0,
+      winOrder: null,
+      winRound: null,
+      winTimestamp: null
     };
 
     game.players.push(player);
@@ -203,6 +211,7 @@ class GameManager {
     game.phase = GamePhase.STARTING;
     game.endReason = null;
     game.endedAt = undefined;
+    game.finalScores = undefined;
 
     // Create and shuffle deck
     const deck = createDeck();
@@ -223,6 +232,13 @@ class GameManager {
     const firstTile = game.wall.pop()!;
     game.players[game.dealerIndex].hand.concealedTiles.push(firstTile);
     game.players[game.dealerIndex].hand.concealedTiles = sortTiles(game.players[game.dealerIndex].hand.concealedTiles);
+
+    for (const player of game.players) {
+      player.winOrder = null;
+      player.winRound = null;
+      player.winTimestamp = null;
+      player.wonFan = 0;
+    }
 
     game.currentPlayerIndex = game.dealerIndex;
     game.phase = GamePhase.PLAYING;
@@ -363,6 +379,10 @@ class GameManager {
 
       case ActionType.HU:
         this.handleHu(game, player);
+        break;
+
+      case ActionType.CHEAT_HU:
+        this.handleCheatHu(game, player);
         break;
 
       case ActionType.PASS:
@@ -559,6 +579,9 @@ class GameManager {
     game.pendingActions = [];
 
     player.status = PlayerStatus.WON;
+    player.winOrder = game.winnersCount + 1;
+    player.winRound = game.roundNumber;
+    player.winTimestamp = Date.now();
     game.winnersCount++;
 
     const existingMelds = player.hand.exposedMelds.length;
@@ -591,6 +614,34 @@ class GameManager {
     }
 
     // Continue playing
+    this.moveToNextPlayer(game);
+  }
+
+  private handleCheatHu(game: GameState, player: Player): void {
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    if (!currentPlayer || currentPlayer.id !== player.id) {
+      throw new Error('Cheat Hu is only available on your turn');
+    }
+
+    if (player.status !== PlayerStatus.PLAYING) {
+      return; // ignore if already resolved
+    }
+
+    game.pendingActions = [];
+
+    player.status = PlayerStatus.WON;
+    player.winOrder = game.winnersCount + 1;
+    player.winRound = game.roundNumber;
+    player.winTimestamp = Date.now();
+    player.wonFan = 1; // Testing shortcut awards 1 fan (score +1)
+    game.winnersCount++;
+
+    const remainingActive = game.players.filter(p => p.status === PlayerStatus.PLAYING).length;
+    if (remainingActive <= 1) {
+      this.endRound(game, GameEndReason.LAST_PLAYER);
+      return;
+    }
+
     this.moveToNextPlayer(game);
   }
 
@@ -671,14 +722,20 @@ class GameManager {
     // Calculate final scores
     const winners = game.players.filter(p => p.status === PlayerStatus.WON);
     const finalScores = calculateGameResult(game.players, winners);
+    game.finalScores = finalScores;
 
     // TODO: Store results and prepare for next round
 
+    const endedAt = Date.now();
     game.phase = GamePhase.ENDED;
     game.endReason = reason;
     game.pendingActions = [];
-    game.endedAt = Date.now();
-    game.lastActionTime = Date.now();
+    game.endedAt = endedAt;
+    game.lastActionTime = endedAt;
+
+    MatchHistoryService.recordMatch(game, finalScores, reason).catch((error) => {
+      console.error('Failed to persist match history:', error);
+    });
   }
 
   async endGameForEmptyRoom(gameId: string, reason: GameEndReason = GameEndReason.EMPTY_ROOM): Promise<void> {
