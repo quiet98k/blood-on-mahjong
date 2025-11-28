@@ -11,23 +11,23 @@ async function demo() {
 
   // Create a game
   console.log('1. Creating game...');
-  const { gameId, playerId: p1 } = gameManager.createGame('Alice');
+  const { gameId, playerId: p1 } = await gameManager.createGame('Alice');
   console.log(`   Game created: ${gameId}`);
   console.log(`   Player 1 (Alice): ${p1}\n`);
 
   // Join 3 more players
   console.log('2. Players joining...');
-  const { playerId: p2 } = gameManager.joinGame(gameId, 'Bob');
+  const { playerId: p2 } = await gameManager.joinGame(gameId, 'Bob');
   console.log(`   Player 2 (Bob): ${p2}`);
-  const { playerId: p3 } = gameManager.joinGame(gameId, 'Carol');
+  const { playerId: p3 } = await gameManager.joinGame(gameId, 'Carol');
   console.log(`   Player 3 (Carol): ${p3}`);
-  const { playerId: p4 } = gameManager.joinGame(gameId, 'Dave');
+  const { playerId: p4 } = await gameManager.joinGame(gameId, 'Dave');
   console.log(`   Player 4 (Dave): ${p4}`);
   console.log('   Game auto-started!\n');
 
   // Get initial game state
   console.log('3. Getting game state...');
-  const game = gameManager.getGame(gameId);
+  const game = await gameManager.getGame(gameId);
   if (!game) {
     console.log('   Error: Game not found');
     return;
@@ -46,7 +46,7 @@ async function demo() {
     console.log(`   - Tiles: ${player.hand.concealedTiles.map(t => `${t.suit}-${t.value}`).join(', ')}`);
     
     // Check available actions
-    const actions = gameManager.getAvailableActions(gameId, player.id);
+    const actions = await gameManager.getAvailableActions(gameId, player.id);
     if (actions.length > 0) {
       console.log(`   - Available actions: ${actions.join(', ')}`);
     }
@@ -60,14 +60,14 @@ async function demo() {
   console.log(`   Discarding: ${firstTile.suit}-${firstTile.value}`);
   
   try {
-    gameManager.executeAction(gameId, dealer.id, ActionType.DISCARD, firstTile.id);
+    await gameManager.executeAction(gameId, dealer.id, ActionType.DISCARD, firstTile.id);
     console.log('   ✓ Discard successful\n');
   } catch (error: any) {
     console.log(`   ✗ Error: ${error.message}\n`);
   }
 
   // Check game state after action
-  const updatedGame = gameManager.getGame(gameId);
+  const updatedGame = await gameManager.getGame(gameId);
   if (updatedGame) {
     console.log('6. Game state after discard:');
     console.log(`   Current player: ${updatedGame.players[updatedGame.currentPlayerIndex].name}`);

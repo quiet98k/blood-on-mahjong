@@ -1,11 +1,12 @@
 import { ref, computed } from 'vue'
 import type { GameState, Player, ActionType, Tile } from '~/types/game'
+import { io, type Socket } from 'socket.io-client'
 
 export const useGame = () => {
   const gameState = ref<GameState | null>(null)
   const playerView = ref<any>(null) // Player's hand view
   const availableActions = ref<ActionType[]>([])
-  const ws = ref<WebSocket | null>(null)
+  const socket = ref<Socket | null>(null)
   const isConnected = ref(false)
   const error = ref<string | null>(null)
 
@@ -20,9 +21,10 @@ export const useGame = () => {
   const connect = async (gId: string, pId: string) => {
     gameId.value = gId
     playerId.value = pId
+    const userName = useCookie('user_name').value || 'Player'
 
     try {
-      // Fetch initial state
+      // Fetch initial state (optional, but good for immediate render)
       const { data } = await useFetch('/api/game/state', {
         query: { gameId: gId, playerId: pId }
       })
@@ -31,53 +33,77 @@ export const useGame = () => {
         updateState(data.value.data)
       }
 
-      // Connect WebSocket
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsUrl = `${protocol}//${window.location.host}/_ws`
-      
-      ws.value = new WebSocket(wsUrl)
+      // Connect Socket.IO
+      // Use default transports (polling first) to avoid websocket connection errors in some envs
+      socket.value = io({
+        withCredentials: true
+      })
 
-      ws.value.onopen = () => {
-        console.log('WebSocket connected')
+      socket.value.on('connect', () => {
+        console.log('Socket.IO connected:', socket.value?.id)
         isConnected.value = true
-        // Subscribe to game updates
-        ws.value?.send(JSON.stringify({
-          type: 'subscribe',
-          gameId: gId,
-          playerId: pId
-        }))
-      }
+        error.value = null
 
-      ws.value.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data)
-          if (message.event === 'gameStateUpdate') {
-            // Refresh state when update received
-            // Ideally the update contains the full state or diff, 
-            // but for now we might need to re-fetch or use the data provided
-            // The backend broadcastGameState sends partial data, so we might need to fetch full state
-            // or update the backend to send full state.
-            // Let's fetch full state for consistency for now.
-            refreshState()
-          }
-        } catch (e) {
-          console.error('Failed to parse WebSocket message', e)
-        }
-      }
+        // Authenticate
+        socket.value?.emit('auth:login', {
+          userId: pId,
+          userName: userName
+        })
 
-      ws.value.onclose = () => {
-        console.log('WebSocket disconnected')
+        // Join Room
+        socket.value?.emit('room:join', {
+          roomId: gId,
+          userId: pId,
+          userName: userName
+        })
+      })
+
+      socket.value.on('connect_error', (err) => {
+        console.error('Socket connection error:', err)
+        error.value = 'Connection failed: ' + err.message
         isConnected.value = false
-      }
+      })
 
-      ws.value.onerror = (e) => {
-        console.error('WebSocket error', e)
-        error.value = 'WebSocket connection error'
-      }
+      socket.value.on('disconnect', () => {
+        console.log('Socket disconnected')
+        isConnected.value = false
+      })
+
+      // Room Events
+      socket.value.on('room:user-joined', (data) => {
+        console.log('User joined:', data)
+        // You might want to update a "players in lobby" list here
+      })
+
+      socket.value.on('room:error', (data) => {
+        console.error('Room error:', data)
+        error.value = data.message
+      })
+
+      // Game Events
+      socket.value.on('game:state-changed', (data) => {
+        console.log('Game state update:', data)
+        // Ideally data contains the full state or we fetch it
+        refreshState()
+      })
+
+      socket.value.on('game:action-received', (data) => {
+        console.log('Action received:', data)
+        // Refresh state to see the result of the action
+        refreshState()
+      })
 
     } catch (e: any) {
       error.value = e.message || 'Failed to connect'
     }
+  }
+
+  const disconnect = () => {
+    if (socket.value) {
+      socket.value.disconnect()
+      socket.value = null
+    }
+    isConnected.value = false
   }
 
   const refreshState = async () => {
@@ -96,72 +122,70 @@ export const useGame = () => {
     gameState.value = data.game
     playerView.value = data.playerView
     availableActions.value = data.availableActions
-    
-    // Update the player's hand in the game state with the private view
-    if (gameState.value && playerId.value) {
-      const playerIndex = gameState.value.players.findIndex(p => p.id === playerId.value)
-      if (playerIndex !== -1 && playerView.value) {
-        gameState.value.players[playerIndex].hand = playerView.value
-      }
-    }
   }
 
-  const executeAction = async (action: ActionType, tileId?: string, tileIds?: string[]) => {
+  const executeAction = async (action: ActionType, tileId?: string) => {
     if (!gameId.value || !playerId.value) return
 
+    // Optimistic update or just send to server
+    // We can use socket to send action for faster response
+    if (socket.value && isConnected.value) {
+      socket.value.emit('game:action', {
+        gameId: gameId.value,
+        playerId: playerId.value,
+        type: action,
+        tileId
+      })
+    }
+
+    // Also call API as backup or primary (depending on backend logic)
+    // Since socket.ts seems to just broadcast, we might still need the API 
+    // to actually update the game state in GameManager.
+    // However, the user asked to use socket.ts functions.
+    // If socket.ts only broadcasts, it doesn't update state.
+    // So we MUST call the API to update state, and let the API (or socket) broadcast the update.
+    
     try {
       const { data, error: apiError } = await useFetch('/api/game/action', {
         method: 'POST',
         body: {
           gameId: gameId.value,
           playerId: playerId.value,
-          action,
-          tileId,
-          tileIds
+          type: action,
+          tileId
         }
       })
 
       if (apiError.value) {
-        throw new Error(apiError.value.message)
+        console.error('Action failed:', apiError.value)
+        return
       }
 
       if (data.value?.success) {
         updateState(data.value.data)
       }
-    } catch (e: any) {
-      error.value = e.message || 'Failed to execute action'
-      console.error(e)
+    } catch (e) {
+      console.error('Error executing action:', e)
     }
   }
 
   const startGame = async () => {
     if (!gameId.value || !playerId.value) return
-
+    
     try {
-      const { error: apiError } = await useFetch('/api/game/start', {
+      const { data } = await useFetch('/api/game/start', {
         method: 'POST',
-        body: {
-          gameId: gameId.value,
-          playerId: playerId.value
-        }
+        body: { gameId: gameId.value, playerId: playerId.value }
       })
-
-      if (apiError.value) {
-        throw new Error(apiError.value.message)
+      
+      if (data.value?.success) {
+        updateState(data.value.data)
+        // Notify others via socket
+        socket.value?.emit('game:state-update', { gameId: gameId.value })
       }
-      // State update will come via WebSocket
-    } catch (e: any) {
-      error.value = e.message || 'Failed to start game'
-      console.error(e)
+    } catch (e) {
+      console.error('Failed to start game:', e)
     }
-  }
-
-  const disconnect = () => {
-    if (ws.value) {
-      ws.value.close()
-      ws.value = null
-    }
-    isConnected.value = false
   }
 
   return {
@@ -173,7 +197,7 @@ export const useGame = () => {
     connect,
     disconnect,
     executeAction,
-    refreshState,
-    startGame
+    startGame,
+    refreshState
   }
 }

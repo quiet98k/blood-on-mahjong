@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const result = gameManager.createGame(playerName);
+    const result = await gameManager.createGame(playerName);
     
     return {
       success: true,

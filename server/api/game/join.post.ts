@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const result = gameManager.joinGame(gameId, playerName);
+    const result = await gameManager.joinGame(gameId, playerName);
     
     return {
       success: true,

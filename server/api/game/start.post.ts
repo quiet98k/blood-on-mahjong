@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const game = gameManager.getGame(gameId);
+  const game = await gameManager.getGame(gameId);
   if (!game) {
     throw createError({
       statusCode: 404,
@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    gameManager.startGame(gameId);
+    await gameManager.startGame(gameId);
     
     return {
       success: true,

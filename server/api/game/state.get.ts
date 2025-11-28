@@ -1,6 +1,6 @@
 import { gameManager } from '../../utils/gameManager';
 
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   const query = getQuery(event);
   const { gameId, playerId } = query;
 
@@ -11,7 +11,7 @@ export default defineEventHandler((event) => {
     });
   }
 
-  const game = gameManager.getGame(gameId as string);
+  const game = await gameManager.getGame(gameId as string);
   
   if (!game) {
     throw createError({
@@ -29,7 +29,7 @@ export default defineEventHandler((event) => {
     });
   }
 
-  const availableActions = gameManager.getAvailableActions(gameId as string, playerId as string);
+  const availableActions = await gameManager.getAvailableActions(gameId as string, playerId as string);
 
   // Ensure isDealer is correctly passed
   const isDealer = player.isDealer;
