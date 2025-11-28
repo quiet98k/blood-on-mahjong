@@ -3,7 +3,10 @@
   <div class="mahjong-page">
     <div class="mahjong-card">
       <h1 class="mahjong-title">Waiting Room</h1>
-      <p class="mahjong-subtitle">Welcome back, Mahjong player.</p>
+      <p class="mahjong-subtitle">
+        Welcome back, {{ userName || 'Player' }}.
+        <span v-if="isAdmin === 'true' || isAdmin === true" style="color: #ff6b6b; font-size: 0.8em;">(Admin Mode)</span>
+      </p>
 
       <div class="mahjong-actions">
         <button class="mahjong-button primary" @click="startNewGame">
@@ -32,13 +35,66 @@
 </template>
 
 <script setup>
-const startNewGame = () => {
-  const roomId = 66666 // TODO: replace with backend / MongoDB-generated roomId
-  return navigateTo(`/gameroom/${roomId}`)
+const userName = useCookie('user_name')
+const isAdmin = useCookie('is_admin')
+
+const startNewGame = async () => {
+  console.log('Checking Admin Status:', isAdmin.value, typeof isAdmin.value)
+  
+  // Check for string 'true' or boolean true
+  if (isAdmin.value === 'true' || isAdmin.value === true) {
+    console.log('Redirecting to Admin Test Page...')
+    return navigateTo('/admin-test')
+  }
+
+  try {
+    const { data, error } = await useFetch('/api/game/create', {
+      method: 'POST',
+      body: { playerName: userName.value || 'Player 1' }
+    })
+
+    if (error.value) {
+      console.error('Failed to create game:', error.value)
+      return
+    }
+
+    if (data.value?.success) {
+      const { gameId, playerId } = data.value.data
+      return navigateTo(`/gameroom/${gameId}?playerId=${playerId}`)
+    }
+  } catch (e) {
+    console.error('Error creating game:', e)
+  }
 }
 
 const onJoinGame = () => {
-  console.log('Join Game clicked (not implemented yet)')
+  // For now, prompt for game ID
+  const gameId = prompt('Enter Game ID:')
+  if (gameId) {
+    joinGame(gameId)
+  }
+}
+
+const joinGame = async (gameId) => {
+  try {
+    const { data, error } = await useFetch('/api/game/join', {
+      method: 'POST',
+      body: { gameId, playerName: userName.value || 'Player ' + Math.floor(Math.random() * 1000) }
+    })
+
+    if (error.value) {
+      console.error('Failed to join game:', error.value)
+      alert('Failed to join game: ' + error.value.message)
+      return
+    }
+
+    if (data.value?.success) {
+      const { playerId } = data.value.data
+      return navigateTo(`/gameroom/${gameId}?playerId=${playerId}`)
+    }
+  } catch (e) {
+    console.error('Error joining game:', e)
+  }
 }
 
 const onMatchHistory = () => {

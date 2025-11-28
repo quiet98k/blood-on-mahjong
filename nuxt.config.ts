@@ -5,4 +5,9 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxt/ui'],
   css: ['~/main.css'],
+  nitro: {
+    experimental: {
+      websocket: true
+    }
+  }
 })

@@ -5,6 +5,7 @@ import { createAdapter } from '@socket.io/redis-adapter'
 import { createClient } from 'redis'
 import { getMongoClient } from './mongo'
 import type { SocketConnection, RoomState } from '../types/database'
+import { gameManager } from './gameManager'
 
 let io: SocketIOServer | null = null
 
@@ -33,7 +34,10 @@ export async function initializeSocketIO(server: HTTPServer) {
 
   io = new SocketIOServer(server, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:3000',
+      origin: (origin, callback) => {
+        // Allow all origins in development/testing
+        callback(null, true)
+      },
       methods: ['GET', 'POST'],
       credentials: true
     },
@@ -61,6 +65,19 @@ export async function initializeSocketIO(server: HTTPServer) {
 
   io.on('connection', (socket: Socket) => {
     console.log(`🔌 Client connected: ${socket.id}`)
+
+    // Set up GameManager broadcasting
+    gameManager.setWebSocketManager({
+      broadcast: (gameId: string, event: string, data: any) => {
+        // Map gameId to roomId (assuming they are the same for now, or we need a lookup)
+        // In GameManager.createGame, gameId is randomUUID.
+        // In GameService.createGame, gameId is randomUUID, roomId is passed.
+        // But GameManager is in-memory and uses gameId as the key.
+        // The frontend uses gameId as roomId in the URL usually.
+        // Let's assume gameId == roomId for broadcasting purposes in this context
+        emitToRoom(gameId, 'game:state-changed', data)
+      }
+    })
 
     // Handle user authentication
     socket.on('auth:login', async (data: { userId: string; userName: string }) => {
@@ -177,19 +194,17 @@ export async function initializeSocketIO(server: HTTPServer) {
     // Game state updates
     socket.on('game:action', async (data: any) => {
       try {
-        const connections = await getSocketConnectionsCollection()
-        const user = await connections.findOne({ socketId: socket.id })
+        const { gameId, playerId, type, tileId, tileIds } = data
         
-        if (!user || !user.roomId) return
-
-        // Broadcast action to all players in room except sender
-        socket.to(user.roomId).emit('game:action-received', {
-          playerId: user.userId,
-          playerName: user.userName,
-          ...data
-        })
-      } catch (error) {
-        console.error('Error in game:action:', error)
+        console.log(`🎮 Action received: ${type} from ${playerId} in game ${gameId}`)
+        
+        // Execute action in GameManager (the brain)
+        // This will validate the move, update state, and trigger broadcast via setWebSocketManager
+        await gameManager.executeAction(gameId, playerId, type, tileId, tileIds)
+        
+      } catch (error: any) {
+        console.error('Error in game:action:', error.message)
+        socket.emit('game:error', { message: error.message })
       }
     })
 

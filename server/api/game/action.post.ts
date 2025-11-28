@@ -22,9 +22,9 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    gameManager.executeAction(gameId, playerId, action, tileId, tileIds);
+    await gameManager.executeAction(gameId, playerId, action, tileId, tileIds);
     
-    const game = gameManager.getGame(gameId);
+    const game = await gameManager.getGame(gameId);
     const player = game?.players.find(p => p.id === playerId);
 
     // Broadcast game state to all players in the room via Socket.IO
@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
       }
     });
 
-    const availableActions = gameManager.getAvailableActions(gameId, playerId);
+    const availableActions = await gameManager.getAvailableActions(gameId, playerId);
 
     return {
       success: true,

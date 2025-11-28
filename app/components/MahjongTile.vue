@@ -14,10 +14,10 @@
     @click="onClick"
   >
     <template v-if="!back">
-      <div class="tile-rank">{{ tile.rank }}</div>
+      <div class="tile-rank">{{ tile.value }}</div>
       <div class="tile-suit">
         <span v-if="tile.suit === 'wan'">萬</span>
-        <span v-else-if="tile.suit === 'tong'">筒</span>
+        <span v-else-if="tile.suit === 'dots'">筒</span>
         <span v-else>條</span>
       </div>
     </template>
@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Tile } from '~/utils/mahjongTiles'
+import type { Tile } from '~/types/game'
 
 const props = defineProps<{
   tile: Tile
@@ -93,10 +93,11 @@ const onClick = () => {
   color: #d32f2f;
 }
 
-.tile--tong .tile-rank,
-.tile--tong .tile-suit {
+.tile--dots .tile-rank,
+.tile--dots .tile-suit {
   color: #1565c0;
 }
+
 
 .tile--tiao .tile-rank,
 .tile--tiao .tile-suit {

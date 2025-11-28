@@ -1,7 +1,7 @@
 import { gameManager } from '../../utils/gameManager';
 
-export default defineEventHandler((event) => {
-  const games = gameManager.listGames();
+export default defineEventHandler(async (event) => {
+  const games = await gameManager.listGames();
   
   return {
     success: true,

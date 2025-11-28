@@ -15,6 +15,7 @@ import { createDeck, shuffleTiles, findTileById, removeTile, sortTiles, tilesEqu
 import { canWin, isTing, getListeningTiles } from './handValidator';
 import { calculateFan, calculateWinningScore, calculateKongScore, calculateGameResult } from './scoring';
 import { randomUUID } from 'crypto';
+import { saveGameState, loadGameState, loadAllGameStates, deleteGameState } from './gamePersistence';
 
 /**
  * In-memory game state manager
@@ -23,9 +24,43 @@ class GameManager {
   private games: Map<string, GameState> = new Map();
   private playerToGame: Map<string, string> = new Map();
   private wsManager: any = null;
+  private isHydrated = false;
 
   setWebSocketManager(manager: any) {
     this.wsManager = manager;
+  }
+
+  private async hydrateFromDatabase() {
+    if (this.isHydrated) return;
+    const persistedGames = await loadAllGameStates();
+    for (const game of persistedGames) {
+      this.games.set(game.gameId, game);
+      for (const player of game.players) {
+        this.playerToGame.set(player.id, game.gameId);
+      }
+    }
+    this.isHydrated = true;
+  }
+
+  private async ensureGameLoaded(gameId: string): Promise<GameState | undefined> {
+    if (this.games.has(gameId)) {
+      return this.games.get(gameId);
+    }
+
+    const stored = await loadGameState(gameId);
+    if (stored) {
+      this.games.set(gameId, stored);
+      for (const player of stored.players) {
+        this.playerToGame.set(player.id, gameId);
+      }
+      return stored;
+    }
+
+    return undefined;
+  }
+
+  private async persistGame(game: GameState) {
+    await saveGameState(game);
   }
 
   private broadcastGameState(gameId: string) {
@@ -46,7 +81,9 @@ class GameManager {
   /**
    * Create a new game
    */
-  createGame(playerName: string): { gameId: string; playerId: string } {
+  async createGame(playerName: string): Promise<{ gameId: string; playerId: string }> {
+    await this.hydrateFromDatabase();
+
     const gameId = randomUUID();
     const playerId = randomUUID();
 
@@ -87,14 +124,18 @@ class GameManager {
     this.games.set(gameId, game);
     this.playerToGame.set(playerId, gameId);
 
+    await this.persistGame(game);
+
     return { gameId, playerId };
   }
 
   /**
    * Join an existing game
    */
-  joinGame(gameId: string, playerName: string): { playerId: string; position: number } {
-    const game = this.games.get(gameId);
+  async joinGame(gameId: string, playerName: string): Promise<{ playerId: string; position: number }> {
+    await this.hydrateFromDatabase();
+
+    const game = await this.ensureGameLoaded(gameId);
     if (!game) {
       throw new Error('Game not found');
     }
@@ -131,10 +172,14 @@ class GameManager {
     game.players.push(player);
     this.playerToGame.set(playerId, gameId);
 
-    // Start game if we have 4 players
-    if (game.players.length === 4) {
-      this.startGame(gameId);
-    }
+    // Auto-start removed. Use manual start.
+    // if (game.players.length === 4) {
+    //   this.startGame(gameId);
+    // }
+
+    // Broadcast update so lobby sees new player
+    await this.persistGame(game);
+    this.broadcastGameState(gameId);
 
     return { playerId, position };
   }
@@ -142,9 +187,15 @@ class GameManager {
   /**
    * Start the game
    */
-  private startGame(gameId: string): void {
-    const game = this.games.get(gameId);
+  public async startGame(gameId: string): Promise<void> {
+    await this.hydrateFromDatabase();
+
+    const game = await this.ensureGameLoaded(gameId);
     if (!game) return;
+
+    if (game.players.length < 2) {
+      throw new Error('Need at least 2 players to start');
+    }
 
     game.phase = GamePhase.STARTING;
 
@@ -171,29 +222,36 @@ class GameManager {
     game.currentPlayerIndex = game.dealerIndex;
     game.phase = GamePhase.PLAYING;
     game.lastActionTime = Date.now();
+
+    await this.persistGame(game);
+    this.broadcastGameState(gameId);
   }
 
   /**
    * Get game state
    */
-  getGame(gameId: string): GameState | undefined {
-    return this.games.get(gameId);
+  async getGame(gameId: string): Promise<GameState | undefined> {
+    await this.hydrateFromDatabase();
+    const game = await this.ensureGameLoaded(gameId);
+    return game;
   }
 
   /**
    * Get game by player ID
    */
-  getGameByPlayer(playerId: string): GameState | undefined {
+  async getGameByPlayer(playerId: string): Promise<GameState | undefined> {
+    await this.hydrateFromDatabase();
     const gameId = this.playerToGame.get(playerId);
     if (!gameId) return undefined;
-    return this.games.get(gameId);
+    return this.ensureGameLoaded(gameId);
   }
 
   /**
    * Get available actions for a player
    */
-  getAvailableActions(gameId: string, playerId: string): ActionType[] {
-    const game = this.games.get(gameId);
+  async getAvailableActions(gameId: string, playerId: string): Promise<ActionType[]> {
+    await this.hydrateFromDatabase();
+    const game = await this.ensureGameLoaded(gameId);
     if (!game || game.phase !== GamePhase.PLAYING) return [];
 
     const player = game.players.find(p => p.id === playerId);
@@ -243,8 +301,9 @@ class GameManager {
   /**
    * Execute a game action
    */
-  executeAction(gameId: string, playerId: string, action: ActionType, tileId?: string, tileIds?: string[]): void {
-    const game = this.games.get(gameId);
+  async executeAction(gameId: string, playerId: string, action: ActionType, tileId?: string, tileIds?: string[]): Promise<void> {
+    await this.hydrateFromDatabase();
+    const game = await this.ensureGameLoaded(gameId);
     if (!game) throw new Error('Game not found');
 
     const player = game.players.find(p => p.id === playerId);
@@ -295,6 +354,7 @@ class GameManager {
     game.lastActionTime = Date.now();
 
     // Broadcast game state update
+    await this.persistGame(game);
     this.broadcastGameState(gameId);
   }
 
@@ -565,23 +625,33 @@ class GameManager {
   /**
    * List all active games
    */
-  listGames(): GameState[] {
+  async listGames(): Promise<GameState[]> {
+    await this.hydrateFromDatabase();
     return Array.from(this.games.values());
   }
 
   /**
    * Delete a game
    */
-  deleteGame(gameId: string): void {
-    const game = this.games.get(gameId);
+  async deleteGame(gameId: string): Promise<void> {
+    await this.hydrateFromDatabase();
+    const game = await this.ensureGameLoaded(gameId);
     if (game) {
       for (const player of game.players) {
         this.playerToGame.delete(player.id);
       }
       this.games.delete(gameId);
     }
+    await deleteGameState(gameId);
   }
 }
 
 // Singleton instance
-export const gameManager = new GameManager();
+// Use globalThis to persist state across HMR reloads in development
+const globalGameManager = globalThis as unknown as { gameManager: GameManager };
+
+if (!globalGameManager.gameManager) {
+  globalGameManager.gameManager = new GameManager();
+}
+
+export const gameManager = globalGameManager.gameManager;

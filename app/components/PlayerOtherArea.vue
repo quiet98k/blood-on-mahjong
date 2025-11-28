@@ -103,17 +103,17 @@
 </template>
 
 <script setup lang="ts">
-import MahjongTile from '~/components/MahjongTile.vue'
-import type { Tile, Meld } from '~/utils/mahjongTiles'
+import MahjongTile from './MahjongTile.vue'
+import type { Tile, Meld } from '~/types/game'
 
-defineProps<{
+const props = defineProps<{
   name: string
   position: 'top' | 'left' | 'right'
   hand: Tile[]
   melds: Meld[]
   discards: Tile[]
-  isWinner: boolean
-  claimableDiscardTileId?: number | null
+  isWinner?: boolean
+  claimableDiscardTileId?: string | null
 }>()
 </script>
 

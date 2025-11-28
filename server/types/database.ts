@@ -1,4 +1,5 @@
 import { ObjectId } from 'mongodb';
+import type { PendingAction } from './game';
 
 /**
  * User Collection - Account + Profile + Login Info
@@ -50,7 +51,7 @@ export interface MahjongGame {
   _id?: ObjectId;
   gameId: string; // Unique game identifier
   roomId: string; // Reference to room
-  phase: 'starting' | 'playing' | 'cha_jiao' | 'ended';
+  phase: 'waiting' | 'starting' | 'playing' | 'cha_jiao' | 'ended';
   players: GamePlayer[];
   wall: StoredTile[];
   currentPlayerIndex: number;
@@ -62,6 +63,7 @@ export interface MahjongGame {
   createdAt: Date;
   lastActionTime: Date;
   updatedAt: Date;
+  pendingActions?: PendingAction[];
 }
 
 export interface GamePlayer {
