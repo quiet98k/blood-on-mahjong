@@ -2,9 +2,9 @@ name: CI-CD
 
 on:
   push:
-    branches: ["*"]
+    branches: ["main"]
   pull_request:
-    branches: ["*"]
+    branches: ["main"]
   workflow_dispatch:
 
 # on:
@@ -39,6 +39,11 @@ jobs:
           kubectl create secret generic mongodb-uri \
             --from-literal=uri="${{ secrets.MONGODB_URI }}" \
             --from-literal=db="${{ secrets.MONGODB_DB }}" \
+            -n blood-on-mahjong-prod \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl create secret generic redis-uri \
+            --from-literal=uri="${{ secrets.REDIS_URI }}" \
             -n blood-on-mahjong-prod \
             --dry-run=client -o yaml | kubectl apply -f -
 
