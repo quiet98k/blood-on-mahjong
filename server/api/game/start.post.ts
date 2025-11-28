@@ -1,4 +1,5 @@
 import { gameManager } from '../../utils/gameManager';
+import { emitToRoom } from '../../utils/socket';
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -37,6 +38,11 @@ export default defineEventHandler(async (event) => {
 
   try {
     await gameManager.startGame(gameId);
+    emitToRoom(gameId, 'game:state-changed', {
+      gameId,
+      phase: 'playing',
+      source: 'start'
+    });
     
     return {
       success: true,
