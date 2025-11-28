@@ -104,6 +104,13 @@ export async function initializeSocketIO(server: HTTPServer) {
     // Join a game room
     socket.on('room:join', async (data: { roomId: string; userId: string; userName: string }) => {
       const { roomId, userId, userName } = data
+      console.log(
+        '[room:join]',
+        'PID:', process.pid,
+        'roomId:', roomId,
+        'user:', userName,
+        'socket:', socket.id
+      )
       
       try {
         const roomStates = await getRoomStatesCollection()
