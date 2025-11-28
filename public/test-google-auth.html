@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google OAuth Test</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    .user-info {
+      background: #f0f0f0;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+    .user-info img {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    button {
+      background: #4285f4;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #357ae8;
+    }
+    .logout {
+      background: #db4437;
+    }
+    .logout:hover {
+      background: #c23321;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 10px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    .success { color: #0f9d58; }
+    .error { color: #db4437; }
+  </style>
+</head>
+<body>
+  <h1>Google OAuth Test Page</h1>
+  
+  <!-- Instructions -->
+  <div class="section">
+    <h2>Setup Instructions</h2>
+    <ol>
+      <li>Install: <code>npm install google-auth-library</code></li>
+      <li>Add to <code>.env</code>:
+        <pre>GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/google/callback</pre>
+      </li>
+      <li>Restart Nuxt server: <code>npm run dev</code></li>
+      <li>Replace <code>YOUR_GOOGLE_CLIENT_ID</code> in this file (line 120)</li>
+    </ol>
+  </div>
+
+  <!-- Login Section -->
+  <div class="section" id="loginSection">
+    <h2>Login with Google</h2>
+    <p>Click the button below to sign in with your Google account:</p>
+    
+    <!-- Google Sign-In Button -->
+    <div id="g_id_onload"
+         data-client_id="101653309566-56dp0h11sq420bpa9qgdv2fm7nubo75c.apps.googleusercontent.com"
+         data-callback="handleGoogleSignIn"
+         data-auto_prompt="false">
+    </div>
+    <div class="g_id_signin" 
+         data-type="standard"
+         data-size="large"
+         data-theme="outline"
+         data-text="sign_in_with"
+         data-shape="rectangular"
+         data-logo_alignment="left">
+    </div>
+  </div>
+
+  <!-- User Info Section -->
+  <div class="section" id="userSection" style="display: none;">
+    <h2>User Information</h2>
+    <div class="user-info" id="userInfo"></div>
+    <button class="logout" onclick="logout()">Logout</button>
+  </div>
+
+  <!-- Response Section -->
+  <div class="section">
+    <h2>API Response</h2>
+    <pre id="response"></pre>
+  </div>
+
+  <!-- Database Check -->
+  <div class="section">
+    <h2>Check Database</h2>
+    <button onclick="checkUsers()">Fetch All Users from MongoDB</button>
+    <pre id="usersResponse"></pre>
+  </div>
+
+  <script>
+    // Handle Google Sign-In callback
+    async function handleGoogleSignIn(response) {
+      console.log('Google Sign-In Response:', response);
+      
+      try {
+        // Send ID token to backend for verification
+        const result = await fetch('/api/auth/google/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: response.credential })
+        });
+        
+        const data = await result.json();
+        console.log('Backend Response:', data);
+        
+        // Display response
+        document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+        
+        if (data.success) {
+          // Store user
+          localStorage.setItem('user', JSON.stringify(data.user));
+          
+          // Show user info
+          displayUser(data.user);
+          
+          // Show success message
+          if (data.isNewUser) {
+            alert('✅ New user created and logged in!');
+          } else {
+            alert('✅ Logged in successfully!');
+          }
+        } else {
+          document.getElementById('response').innerHTML = 
+            '<span class="error">Error: ' + (data.message || 'Login failed') + '</span>';
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('response').innerHTML = 
+          '<span class="error">Error: ' + error.message + '</span>';
+      }
+    }
+
+    // Display user information
+    function displayUser(user) {
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('userSection').style.display = 'block';
+      
+      document.getElementById('userInfo').innerHTML = `
+        <img src="${user.avatar}" alt="${user.name}">
+        <strong>${user.name}</strong><br>
+        <small>${user.email}</small><br>
+        <small>Provider: ${user.oauthProvider}</small><br>
+        <small>User ID: ${user.userId}</small>
+        ${user.stats ? `<br><small>Games Played: ${user.stats.gamesPlayed}</small>` : ''}
+      `;
+    }
+
+    // Logout
+    function logout() {
+      localStorage.removeItem('user');
+      document.getElementById('loginSection').style.display = 'block';
+      document.getElementById('userSection').style.display = 'none';
+      document.getElementById('response').textContent = 'Logged out';
+      location.reload();
+    }
+
+    // Check if user is already logged in
+    window.onload = function() {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        try {
+          const user = JSON.parse(savedUser);
+          displayUser(user);
+          document.getElementById('response').textContent = 'Loaded from localStorage';
+        } catch (e) {
+          localStorage.removeItem('user');
+        }
+      }
+    };
+
+    // Fetch all users from database
+    async function checkUsers() {
+      try {
+        const response = await fetch('/api/test-users');
+        const data = await response.json();
+        
+        document.getElementById('usersResponse').textContent = 
+          JSON.stringify(data, null, 2);
+        
+        if (data.success) {
+          alert(`Found ${data.count} users in database`);
+        }
+      } catch (error) {
+        document.getElementById('usersResponse').innerHTML = 
+          '<span class="error">Error: ' + error.message + '</span>';
+      }
+    }
+  </script>
+</body>
+</html>

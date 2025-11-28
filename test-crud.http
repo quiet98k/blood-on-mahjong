@@ -1,0 +1,87 @@
+# MongoDB CRUD Operations Test
+# Use REST Client extension in VS Code to run these tests
+
+@baseUrl = http://localhost:3000/api
+
+### 1. Check MongoDB Status
+GET {{baseUrl}}/test-mongo-status
+
+### 2. List All Users
+GET {{baseUrl}}/test-users
+
+### 3. Insert New User
+POST {{baseUrl}}/test-insert
+Content-Type: application/json
+
+### 4. Get User by ID (replace with actual userId from insert response)
+GET {{baseUrl}}/test-get-user?userId=YOUR_USER_ID_HERE
+
+### 5. Update User - Change Name Only
+POST {{baseUrl}}/test-update
+Content-Type: application/json
+
+{
+  "userId": "YOUR_USER_ID_HERE",
+  "updates": {
+    "name": "Updated Name"
+  }
+}
+
+### 6. Update User - Change Stats
+POST {{baseUrl}}/test-update
+Content-Type: application/json
+
+{
+  "userId": "YOUR_USER_ID_HERE",
+  "updates": {
+    "stats": {
+      "gamesPlayed": 25,
+      "gamesWon": 12,
+      "totalScore": 500,
+      "highestFan": 5,
+      "winRate": 0.48
+    }
+  }
+}
+
+### 7. Update User - Multiple Fields
+POST {{baseUrl}}/test-update
+Content-Type: application/json
+
+{
+  "userId": "YOUR_USER_ID_HERE",
+  "updates": {
+    "name": "Pro Player",
+    "avatar": "https://ui-avatars.com/api/?name=Pro+Player&background=random",
+    "stats": {
+      "gamesPlayed": 100,
+      "gamesWon": 75,
+      "totalScore": 2500,
+      "highestFan": 5,
+      "winRate": 0.75
+    }
+  }
+}
+
+### 8. Delete User
+POST {{baseUrl}}/test-delete
+Content-Type: application/json
+
+{
+  "userId": "YOUR_USER_ID_HERE"
+}
+
+### 9. Verify Deletion (should return 404)
+GET {{baseUrl}}/test-get-user?userId=YOUR_USER_ID_HERE
+
+### 10. Batch Insert - Create Multiple Users
+POST {{baseUrl}}/test-insert
+
+###
+POST {{baseUrl}}/test-insert
+
+###
+POST {{baseUrl}}/test-insert
+
+### 11. Count Users After Batch Insert
+GET {{baseUrl}}/test-users
