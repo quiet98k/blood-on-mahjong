@@ -58,6 +58,7 @@ export default defineEventHandler(async (event) => {
         avatar: googleUser.picture,
         oauthProvider: 'google',
         oauthId: googleUser.sub,
+        isAdmin: false,
         createdAt: new Date(),
         lastLoginAt: new Date(),
         stats: {
@@ -80,7 +81,8 @@ export default defineEventHandler(async (event) => {
           email: user.email,
           name: user.name,
           avatar: user.avatar,
-          oauthProvider: user.oauthProvider
+          oauthProvider: user.oauthProvider,
+          isAdmin: user.isAdmin ?? false
         },
         message: 'New user created and logged in'
       }
@@ -111,7 +113,8 @@ export default defineEventHandler(async (event) => {
           name: updatedUser!.name,
           avatar: updatedUser!.avatar,
           oauthProvider: updatedUser!.oauthProvider,
-          stats: updatedUser!.stats
+          stats: updatedUser!.stats,
+          isAdmin: updatedUser!.isAdmin ?? false
         },
         message: 'User logged in successfully'
       }

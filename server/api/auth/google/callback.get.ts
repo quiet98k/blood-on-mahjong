@@ -79,6 +79,7 @@ export default defineEventHandler(async (event) => {
         avatar: googleUser.picture,
         oauthProvider: 'google',
         googleId: googleUser.sub,
+        isAdmin: false,
         createdAt: new Date(),
         lastLoginAt: new Date(),
         stats: {
@@ -118,7 +119,8 @@ export default defineEventHandler(async (event) => {
         email: user.email,
         name: user.name,
         avatar: user.avatar,
-        oauthProvider: user.oauthProvider
+          oauthProvider: user.oauthProvider,
+          isAdmin: user.isAdmin ?? false
       },
       tokens: {
         accessToken: tokens.access_token,

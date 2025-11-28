@@ -12,6 +12,7 @@ export interface User {
   avatar?: string;
   oauthProvider: 'google' | 'local'; // OAuth provider
   oauthId?: string; // Google ID
+  isAdmin: boolean;
   createdAt: Date;
   lastLoginAt: Date;
   stats: {

@@ -12,6 +12,7 @@ export class UserService {
     email: string;
     name: string;
     avatar?: string;
+    isAdmin?: boolean;
   }): Promise<User> {
     const collection = await getCollection<User>(this.COLLECTION_NAME);
     
@@ -21,6 +22,7 @@ export class UserService {
       name: data.name,
       avatar: data.avatar,
       oauthProvider: 'local',
+      isAdmin: data.isAdmin ?? false,
       createdAt: new Date(),
       lastLoginAt: new Date(),
       stats: {
@@ -77,6 +79,7 @@ export class UserService {
       avatar: profile.avatar,
       oauthProvider: 'google',
       oauthId: profile.googleId,
+      isAdmin: false,
       createdAt: new Date(),
       lastLoginAt: new Date(),
       stats: {

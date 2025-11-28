@@ -39,6 +39,7 @@ export default defineEventHandler(async (event) => {
         avatar: mockGoogleUser.picture,
         oauthProvider: 'google',
         oauthId: mockGoogleUser.sub,
+        isAdmin: false,
         createdAt: new Date(),
         lastLoginAt: new Date(),
         stats: {
@@ -60,7 +61,8 @@ export default defineEventHandler(async (event) => {
           email: newUser.email,
           name: newUser.name,
           avatar: newUser.avatar,
-          oauthProvider: newUser.oauthProvider
+          oauthProvider: newUser.oauthProvider,
+          isAdmin: newUser.isAdmin
         },
         message: 'Mock Google user created successfully'
       }
@@ -90,7 +92,8 @@ export default defineEventHandler(async (event) => {
           name: updatedUser!.name,
           avatar: updatedUser!.avatar,
           oauthProvider: updatedUser!.oauthProvider,
-          stats: updatedUser!.stats
+          stats: updatedUser!.stats,
+          isAdmin: updatedUser!.isAdmin ?? false
         },
         message: 'Mock Google user logged in successfully'
       }

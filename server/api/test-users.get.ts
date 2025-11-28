@@ -15,6 +15,7 @@ export default defineEventHandler(async (event) => {
         email: user.email,
         name: user.name,
         oauthProvider: user.oauthProvider,
+        isAdmin: user.isAdmin ?? false,
         createdAt: user.createdAt,
         stats: user.stats
       }))

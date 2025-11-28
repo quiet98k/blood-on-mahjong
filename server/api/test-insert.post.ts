@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
       name: 'Test User 2',
       avatar: 'https://ui-avatars.com/api/?name=Test+User',
       oauthProvider: 'local',
+      isAdmin: false,
       createdAt: new Date(),
       lastLoginAt: new Date(),
       stats: {

@@ -40,7 +40,8 @@ export default defineEventHandler(async (event) => {
         email: user.email,
         name: user.name,
         avatar: user.avatar,
-        stats: user.stats
+        stats: user.stats,
+        isAdmin: user.isAdmin ?? false
       }
     };
   } catch (error: any) {
