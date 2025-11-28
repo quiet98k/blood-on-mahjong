@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import type { GameState, Player, ActionType, Tile } from '~/types/game'
+import { GamePhase } from '~/types/game'
 import { io, type Socket } from 'socket.io-client'
 
 export const useGame = () => {
@@ -10,6 +11,7 @@ export const useGame = () => {
   const isConnected = ref(false)
   const error = ref<string | null>(null)
   const isActionPending = ref(false)
+  const roomDismissedReason = ref<string | null>(null)
 
   const currentPlayer = computed(() => {
     if (!gameState.value || !playerId.value) return null
@@ -37,6 +39,7 @@ export const useGame = () => {
   const connect = async (gId: string, pId: string) => {
     gameId.value = gId
     playerId.value = pId
+    roomDismissedReason.value = null
     const userName = useCookie('user_name').value || 'Player'
 
     try {
@@ -95,6 +98,13 @@ export const useGame = () => {
         error.value = data.message
       })
 
+      socket.value.on('room:dismissed', async (payload) => {
+        console.warn('Room dismissed:', payload)
+        roomDismissedReason.value = payload?.reason || 'owner_left'
+        error.value = payload?.message || 'Room dismissed by host'
+        await refreshState()
+      })
+
       // Game Events
       socket.value.on('game:state-changed', async (data) => {
         console.log('Game state update:', data)
@@ -133,6 +143,7 @@ export const useGame = () => {
 
   const executeAction = async (action: ActionType, tileId?: string, tileIds?: string[]) => {
     if (!gameId.value || !playerId.value) return
+    if (gameState.value?.phase === GamePhase.ENDED) return
     if (isActionPending.value) return
     isActionPending.value = true
 
@@ -213,6 +224,7 @@ export const useGame = () => {
     executeAction,
     startGame,
     refreshState,
-    isActionPending
+    isActionPending,
+    roomDismissedReason
   }
 }

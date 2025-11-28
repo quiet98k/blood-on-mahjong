@@ -100,6 +100,7 @@ const gameStateToDocument = (game: GameState): PersistedMahjongGame => ({
   gameId: game.gameId,
   roomId: game.gameId,
   phase: game.phase as PersistedMahjongGame['phase'],
+  endReason: game.endReason,
   players: game.players.map(playerToStored),
   wall: game.wall.map(tileToStored),
   currentPlayerIndex: game.currentPlayerIndex,
@@ -111,12 +112,14 @@ const gameStateToDocument = (game: GameState): PersistedMahjongGame => ({
   createdAt: new Date(game.createdAt),
   lastActionTime: new Date(game.lastActionTime),
   updatedAt: new Date(),
+  endedAt: game.endedAt ? new Date(game.endedAt) : undefined,
   pendingActions: game.pendingActions
 })
 
 const documentToGameState = (doc: PersistedMahjongGame): GameState => ({
   gameId: doc.gameId,
   phase: doc.phase as GameState['phase'],
+  endReason: (doc.endReason ?? null) as GameState['endReason'],
   players: doc.players.map(storedToPlayer),
   wall: doc.wall.map(storedToTile),
   currentPlayerIndex: doc.currentPlayerIndex,
@@ -127,6 +130,7 @@ const documentToGameState = (doc: PersistedMahjongGame): GameState => ({
   roundNumber: doc.roundNumber,
   createdAt: doc.createdAt.getTime(),
   lastActionTime: doc.lastActionTime.getTime(),
+  endedAt: doc.endedAt ? doc.endedAt.getTime() : undefined,
   pendingActions: doc.pendingActions ?? []
 })
 

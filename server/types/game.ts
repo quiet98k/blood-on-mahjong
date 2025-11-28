@@ -99,9 +99,17 @@ export enum GamePhase {
   ENDED = 'ended'
 }
 
+export enum GameEndReason {
+  WALL_EXHAUSTED = 'wall_exhausted',
+  LAST_PLAYER = 'last_player',
+  OWNER_LEFT = 'owner_left',
+  EMPTY_ROOM = 'empty_room'
+}
+
 export interface GameState {
   gameId: string;
   phase: GamePhase;
+  endReason: GameEndReason | null;
   players: Player[];
   wall: Tile[];
   currentPlayerIndex: number;
@@ -112,6 +120,7 @@ export interface GameState {
   roundNumber: number;
   createdAt: number;
   lastActionTime: number;
+  endedAt?: number;
   pendingActions: PendingAction[]; // Actions waiting for player response
 }
 

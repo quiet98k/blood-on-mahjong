@@ -53,6 +53,7 @@ export interface MahjongGame {
   gameId: string; // Unique game identifier
   roomId: string; // Reference to room
   phase: 'waiting' | 'starting' | 'playing' | 'cha_jiao' | 'ended';
+  endReason?: string | null;
   players: GamePlayer[];
   wall: StoredTile[];
   currentPlayerIndex: number;
@@ -64,6 +65,7 @@ export interface MahjongGame {
   createdAt: Date;
   lastActionTime: Date;
   updatedAt: Date;
+  endedAt?: Date;
   pendingActions?: PendingAction[];
 }
 
@@ -176,6 +178,7 @@ export interface RoomState {
   roomId: string;
   playerIds: string[]; // Array of user IDs in room
   socketIds: string[]; // Array of socket IDs in room
+  ownerId?: string;
   maxPlayers: number;
   createdAt: Date;
   updatedAt: Date;

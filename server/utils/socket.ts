@@ -6,6 +6,7 @@ import { createClient } from 'redis'
 import { getMongoClient } from './mongo'
 import type { SocketConnection, RoomState } from '../types/database'
 import { gameManager } from './gameManager'
+import { GameEndReason } from '../types/game'
 
 let io: SocketIOServer | null = null
 
@@ -125,10 +126,17 @@ export async function initializeSocketIO(server: HTTPServer) {
             roomId,
             playerIds: [],
             socketIds: [],
+            ownerId: userId,
             maxPlayers: 4,
             createdAt: new Date(),
             updatedAt: new Date()
           })
+          roomState = await roomStates.findOne({ roomId })
+        } else if (!roomState.ownerId) {
+          await roomStates.updateOne(
+            { roomId },
+            { $set: { ownerId: userId } }
+          )
           roomState = await roomStates.findOne({ roomId })
         }
         
@@ -323,7 +331,39 @@ async function handleLeaveRoom(socket: Socket, roomId: string) {
     // Get updated room state
     const updatedRoom = await roomStates.findOne({ roomId })
     
-    if (updatedRoom) {
+        if (updatedRoom) {
+          const ownerLeft = updatedRoom.ownerId && user?.userId === updatedRoom.ownerId
+
+          if (ownerLeft) {
+            const remainingSocketIds = updatedRoom.socketIds.filter((id: string) => id !== socket.id)
+
+            io!.to(roomId).emit('room:dismissed', {
+              reason: GameEndReason.OWNER_LEFT,
+              message: 'Room closed by host'
+            })
+
+            if (remainingSocketIds.length > 0) {
+              await connections.updateMany(
+                { socketId: { $in: remainingSocketIds } },
+                { $unset: { roomId: '' }, $set: { lastSeenAt: new Date() } }
+              )
+
+              for (const sid of remainingSocketIds) {
+                const peer = io!.sockets.sockets.get(sid)
+                peer?.leave(roomId)
+              }
+            }
+
+            try {
+              await gameManager.endGameForEmptyRoom(roomId, GameEndReason.OWNER_LEFT)
+            } catch (error) {
+              console.error('Failed to end game after owner left:', error)
+            }
+
+            await roomStates.deleteOne({ roomId })
+            return
+          }
+
       // Get remaining users
       const roomUsers = await connections.find({
         socketId: { $in: updatedRoom.socketIds }

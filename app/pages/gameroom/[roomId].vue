@@ -15,6 +15,16 @@
       </header>
 
       <main class="room-main">
+        <div v-if="isOverlayVisible" class="game-over-overlay">
+          <div class="game-over-card">
+            <p class="overlay-title">{{ overlayTitle }}</p>
+            <p class="overlay-message">{{ overlayMessage }}</p>
+            <button class="mahjong-button primary overlay-button" @click="backToLobby">
+              Exit to Lobby
+            </button>
+          </div>
+        </div>
+
         <!-- Big responsive table -->
         <div class="table-wrapper">
           <div class="mahjong-table">
@@ -28,7 +38,6 @@
                 Click tiles to select; click again to discard. Draws happen automatically after each discard.
               </p>
             </div>
-
             <!-- Top player -->
             <div class="seat seat-top" :class="{ 'seat-active': activePosition !== null && topPlayer?.position === activePosition }">
               <PlayerOtherArea
@@ -86,7 +95,7 @@
           <!-- Admin / Dealer Controls -->
           <div class="test-controls" v-if="canStartGame">
             <h2 class="panel-title">Room Controls</h2>
-            <button class="mahjong-button panel-button" @click="startGame">
+            <button class="mahjong-button panel-button" @click="startGame" :disabled="isInteractionLocked">
               Start Game ({{ gameState?.players.length }}/4 Players)
             </button>
           </div>
@@ -102,13 +111,14 @@
                 class="mahjong-button panel-button" 
                 @click="setupTestGame"
                 v-if="(gameState?.players.length || 0) < 4"
+                :disabled="isInteractionLocked"
               >
                 Add Bots & Start
               </button>
             </div>
 
             <!-- Manual Refresh -->
-            <button class="mahjong-button panel-button small" @click="refreshState">
+            <button class="mahjong-button panel-button small" @click="refreshState" :disabled="isInteractionLocked">
               Force Refresh State
             </button>
 
@@ -121,7 +131,7 @@
                 <button 
                   class="mahjong-button panel-button small"
                   @click="forceDiscard(p)"
-                  :disabled="gameState?.currentPlayerIndex !== p.position"
+                  :disabled="isInteractionLocked || gameState?.currentPlayerIndex !== p.position"
                   :style="gameState?.currentPlayerIndex !== p.position ? { opacity: 0.5 } : {}"
                 >
                   Discard Random
@@ -134,37 +144,37 @@
             <h2 class="panel-title">Game Actions</h2>
             
             <div v-if="showPeng">
-              <button class="mahjong-button panel-button" @click="onPeng">
+              <button class="mahjong-button panel-button" @click="onPeng" :disabled="isInteractionLocked">
                 Pung (碰)
               </button>
             </div>
 
             <div v-if="showKong">
-              <button class="mahjong-button panel-button" @click="onKong">
+              <button class="mahjong-button panel-button" @click="onKong" :disabled="isInteractionLocked">
                 Kong (杠)
               </button>
             </div>
 
             <div v-if="showConcealedKong">
-              <button class="mahjong-button panel-button" @click="onConcealedKong">
+              <button class="mahjong-button panel-button" @click="onConcealedKong" :disabled="isInteractionLocked">
                 Concealed Kong (暗杠)
               </button>
             </div>
 
             <div v-if="showExtendedKong">
-              <button class="mahjong-button panel-button" @click="onExtendedKong">
+              <button class="mahjong-button panel-button" @click="onExtendedKong" :disabled="isInteractionLocked">
                 Extended Kong (续杠)
               </button>
             </div>
 
             <div v-if="showHu">
-              <button class="mahjong-button panel-button" @click="onHu">
+              <button class="mahjong-button panel-button" @click="onHu" :disabled="isInteractionLocked">
                 Hu (胡)
               </button>
             </div>
 
             <div v-if="showPass">
-              <button class="mahjong-button panel-button danger" @click="onPass">
+              <button class="mahjong-button panel-button danger" @click="onPass" :disabled="isInteractionLocked">
                 Pass (过)
               </button>
             </div>
@@ -188,7 +198,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import PlayerSelfArea from '~/components/PlayerSelfArea.vue'
 import PlayerOtherArea from '~/components/PlayerOtherArea.vue'
 import { useGame } from '~/composables/useGame'
-import { ActionType, type Tile, type Meld, type Player } from '~/types/game'
+import { ActionType, GamePhase, GameEndReason, type Tile, type Meld, type Player } from '~/types/game'
 
 const route = useRoute()
 const roomId = computed(() => String(route.params.roomId || ''))
@@ -204,7 +214,8 @@ const {
   disconnect, 
   executeAction,
   startGame,
-  refreshState
+  refreshState,
+  roomDismissedReason
 } = useGame()
 
 const backToLobby = () => navigateTo('/')
@@ -238,6 +249,31 @@ const playerMelds = computed(() => currentPlayer.value?.hand.exposedMelds || [])
 const playerDiscards = computed(() => currentPlayer.value?.hand.discardedTiles || [])
 const isWinner = computed(() => currentPlayer.value?.status === 'won')
 const isDealer = computed(() => currentPlayer.value?.isDealer)
+const isGameEnded = computed(() => gameState.value?.phase === GamePhase.ENDED)
+const overlayReason = computed(() => roomDismissedReason.value || gameState.value?.endReason || null)
+const isOverlayVisible = computed(() => isGameEnded.value || !!roomDismissedReason.value)
+const overlayTitle = computed(() => {
+  if (roomDismissedReason.value === GameEndReason.OWNER_LEFT) {
+    return 'Room Closed'
+  }
+  return 'Game Over'
+})
+const overlayMessage = computed(() => {
+  const reason = overlayReason.value
+  switch (reason) {
+    case GameEndReason.WALL_EXHAUSTED:
+      return 'The wall is empty. No more tiles to draw.'
+    case GameEndReason.LAST_PLAYER:
+      return 'Only one player remains. Round complete.'
+    case GameEndReason.OWNER_LEFT:
+      return 'The host left the room. This game has been dismissed.'
+    case GameEndReason.EMPTY_ROOM:
+      return 'All players left the room. This game has ended.'
+    default:
+      return 'This round has ended. Please exit to the lobby.'
+  }
+})
+const isInteractionLocked = computed(() => isOverlayVisible.value)
 const canStartGame = computed(() => {
   // Debug log to see why button might not show
   console.log('canStartGame check:', {
@@ -298,7 +334,7 @@ const selectedTileId = ref<string | null>(null)
 const claimableDiscardTileId = ref<string | null>(null)
 
 const handleTileClick = (tile: Tile) => {
-  if (isWinner.value) return
+  if (isWinner.value || isInteractionLocked.value) return
   
   // If it's our turn and we can discard
   const canDiscard = availableActions.value.includes(ActionType.DISCARD)
@@ -327,7 +363,7 @@ const showHu = computed(() => availableActions.value.includes(ActionType.HU))
 const showPass = computed(() => availableActions.value.includes(ActionType.PASS))
 
 const onPeng = () => executeAction(ActionType.PENG)
-const onKong = () => executeAction(ActionType.KONG) // TODO: Handle multiple kong options if needed
+const onKong = () => executeAction(ActionType.KONG)
 const onHu = () => executeAction(ActionType.HU)
 const onPass = () => executeAction(ActionType.PASS)
 
@@ -479,6 +515,7 @@ const forceDiscard = async (p: Player) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative;
 }
 
 @media (min-width: 900px) {
@@ -630,6 +667,13 @@ const forceDiscard = async (p: Player) => {
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
 }
 
+.mahjong-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 .panel-button {
   display: block;
   width: 100%;
@@ -645,5 +689,41 @@ const forceDiscard = async (p: Player) => {
 
 .panel-button.danger:hover {
   background: rgba(160, 38, 38, 1);
+}
+
+.game-over-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 10, 8, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  z-index: 10;
+}
+
+.game-over-card {
+  background: rgba(4, 16, 11, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 32px;
+  width: min(360px, 90%);
+  text-align: center;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+.overlay-title {
+  font-size: 1.6rem;
+  margin-bottom: 12px;
+}
+
+.overlay-message {
+  font-size: 1rem;
+  opacity: 0.9;
+  margin-bottom: 20px;
+}
+
+.overlay-button {
+  width: 100%;
 }
 </style>

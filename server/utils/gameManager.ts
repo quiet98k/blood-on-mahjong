@@ -9,7 +9,8 @@ import {
   Meld,
   MeldType,
   PendingAction,
-  TileSuit
+  TileSuit,
+  GameEndReason
 } from '../types/game';
 import { createDeck, shuffleTiles, findTileById, removeTile, sortTiles, tilesEqual, groupTiles, isMissingOneSuit } from './tiles';
 import { canWin, isTing } from './handValidator';
@@ -108,6 +109,7 @@ class GameManager {
     const game: GameState = {
       gameId,
       phase: GamePhase.WAITING,
+      endReason: null,
       players: [player],
       wall: [],
       currentPlayerIndex: 0,
@@ -118,6 +120,7 @@ class GameManager {
       roundNumber: 1,
       createdAt: Date.now(),
       lastActionTime: Date.now(),
+      endedAt: undefined,
       pendingActions: []
     };
 
@@ -198,6 +201,8 @@ class GameManager {
     }
 
     game.phase = GamePhase.STARTING;
+    game.endReason = null;
+    game.endedAt = undefined;
 
     // Create and shuffle deck
     const deck = createDeck();
@@ -317,6 +322,9 @@ class GameManager {
     await this.hydrateFromDatabase();
     const game = await this.ensureGameLoaded(gameId);
     if (!game) throw new Error('Game not found');
+    if (game.phase !== GamePhase.PLAYING) {
+      throw new Error('Game is not active');
+    }
 
     const player = game.players.find(p => p.id === playerId);
     if (!player) throw new Error('Player not found');
@@ -399,7 +407,7 @@ class GameManager {
 
   private handleDraw(game: GameState, player: Player): void {
     if (game.wall.length === 0) {
-      this.endRound(game);
+      this.endRound(game, GameEndReason.WALL_EXHAUSTED);
       return;
     }
 
@@ -576,13 +584,14 @@ class GameManager {
 
     player.wonFan = fan.totalFan;
 
-    // Check if game should end
-    if (game.winnersCount >= 3 || game.wall.length === 0) {
-      this.endRound(game);
-    } else {
-      // Continue playing
-      this.moveToNextPlayer(game);
+    const remainingActive = game.players.filter(p => p.status === PlayerStatus.PLAYING).length;
+    if (remainingActive <= 1) {
+      this.endRound(game, GameEndReason.LAST_PLAYER);
+      return;
     }
+
+    // Continue playing
+    this.moveToNextPlayer(game);
   }
 
   private handlePass(game: GameState, player: Player): void {
@@ -634,6 +643,10 @@ class GameManager {
   }
 
   private moveToNextPlayer(game: GameState): void {
+    if (game.phase !== GamePhase.PLAYING) {
+      return;
+    }
+
     if (game.players.length === 0) {
       throw new Error('No players available to take a turn');
     }
@@ -652,7 +665,7 @@ class GameManager {
     this.handleDraw(game, nextPlayer);
   }
 
-  private endRound(game: GameState): void {
+  private endRound(game: GameState, reason: GameEndReason): void {
     game.phase = GamePhase.CHA_JIAO;
 
     // Calculate final scores
@@ -662,9 +675,13 @@ class GameManager {
     // TODO: Store results and prepare for next round
 
     game.phase = GamePhase.ENDED;
+    game.endReason = reason;
+    game.pendingActions = [];
+    game.endedAt = Date.now();
+    game.lastActionTime = Date.now();
   }
 
-  async endGameForEmptyRoom(gameId: string): Promise<void> {
+  async endGameForEmptyRoom(gameId: string, reason: GameEndReason = GameEndReason.EMPTY_ROOM): Promise<void> {
     await this.hydrateFromDatabase();
     const game = await this.ensureGameLoaded(gameId);
     if (!game) return;
@@ -675,8 +692,7 @@ class GameManager {
     }
 
     game.pendingActions = [];
-    game.phase = GamePhase.ENDED;
-    game.lastActionTime = Date.now();
+    this.endRound(game, reason);
 
     await this.persistGame(game);
     this.broadcastGameState(gameId);

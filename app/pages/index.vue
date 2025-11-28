@@ -49,20 +49,17 @@ const startNewGame = async () => {
   }
 
   try {
-    const { data, error } = await useFetch('/api/game/create', {
+    const response = await $fetch('/api/game/create', {
       method: 'POST',
-      body: { playerName: userName.value || 'Player 1' }
+      body: { playerName: userName.value || 'Player 1' },
+      headers: { 'Cache-Control': 'no-cache' }
     })
 
-    if (error.value) {
-      console.error('Failed to create game:', error.value)
-      return
-    }
-
-    if (data.value?.success) {
-      const { gameId, playerId } = data.value.data
+    if (response && response.success) {
+      const { gameId, playerId } = response.data || {}
       return navigateTo(`/gameroom/${gameId}?playerId=${playerId}`)
     }
+    console.error('Unexpected response creating game:', response)
   } catch (e) {
     console.error('Error creating game:', e)
   }
