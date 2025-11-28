@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
         email: mockGoogleUser.email,
         name: mockGoogleUser.name,
         avatar: mockGoogleUser.picture,
-        oauthProvider: 'google',
+        oauthProvider: 'local',
         oauthId: mockGoogleUser.sub,
         isAdmin: false,
         createdAt: new Date(),

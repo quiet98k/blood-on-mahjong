@@ -6,48 +6,95 @@
       <p class="mahjong-subtitle">血战到底 · 四川麻将</p>
 
       <p class="mahjong-text">
-        Select a role to simulate login:
+        Select a user from the database to sign in:
       </p>
 
       <div class="login-buttons">
-        <button class="mahjong-button admin-btn" @click="handleLogin('Admin', true)">
-          Login as Admin (Debug Mode)
-        </button>
-        
-        <div class="player-buttons">
-          <button class="mahjong-button" @click="handleLogin('Player 1')">
-            Player 1
-          </button>
-          <button class="mahjong-button" @click="handleLogin('Player 2')">
-            Player 2
-          </button>
-          <button class="mahjong-button" @click="handleLogin('Player 3')">
-            Player 3
-          </button>
-          <button class="mahjong-button" @click="handleLogin('Player 4')">
-            Player 4
+        <div class="section">
+          <div class="section-header">
+            <span>Players</span>
+            <button class="link-btn" type="button" @click="refreshUsers" :disabled="usersPending">
+              Refresh
+            </button>
+          </div>
+          <div v-if="usersPending" class="status-text">Loading users…</div>
+          <div v-else-if="usersError" class="status-text error">Failed to load users. Try refreshing.</div>
+          <div v-else-if="playerUsers.length === 0" class="status-text">No players found.</div>
+          <div class="player-buttons">
+            <button
+              v-for="user in playerUsers"
+              :key="user.userId"
+              class="mahjong-button"
+              @click="handleLogin(user)"
+              :disabled="isSubmitting"
+            >
+              {{ user.name }}
+            </button>
+          </div>
+        </div>
+
+        <div class="section" v-if="adminUsers.length">
+          <div class="section-header">
+            <span>Admins</span>
+          </div>
+          <button
+            v-for="user in adminUsers"
+            :key="user.userId"
+            class="mahjong-button admin-btn"
+            @click="handleLogin(user)"
+            :disabled="isSubmitting"
+          >
+            {{ user.name }}
           </button>
         </div>
+
+        <p v-if="loginError" class="status-text error">{{ loginError }}</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-const handleLogin = (name, isAdmin = false) => {
-  // Store auth token
-  const token = useCookie('auth_token', { maxAge: 60 * 60 * 24 * 7 })
-  token.value = 'dummy-token-' + name
+const { data: usersData, pending: usersPending, error: usersError, refresh } = await useFetch('/api/auth/users')
 
-  // Store user info for simulation
-  const userName = useCookie('user_name')
-  userName.value = name
-  
-  const adminCookie = useCookie('is_admin')
-  adminCookie.value = isAdmin ? 'true' : 'false'
+const playerUsers = computed(() => (usersData.value?.users || []).filter((u) => !u.isAdmin))
+const adminUsers = computed(() => (usersData.value?.users || []).filter((u) => u.isAdmin))
 
-  // Redirect to main room
-  return navigateTo('/')
+const isSubmitting = ref(false)
+const loginError = ref('')
+
+const refreshUsers = () => {
+  loginError.value = ''
+  refresh()
+}
+
+const handleLogin = async (user) => {
+  if (isSubmitting.value) return
+  loginError.value = ''
+  isSubmitting.value = true
+
+  try {
+    const response = await $fetch('/api/auth/debug-login', {
+      method: 'POST',
+      body: { userId: user.userId }
+    })
+
+    const token = useCookie('auth_token', { maxAge: 60 * 60 * 24 * 7 })
+    token.value = response.token || `session-${response.user.userId}`
+
+    const userName = useCookie('user_name')
+    userName.value = response.user.name
+
+    const adminCookie = useCookie('is_admin')
+    adminCookie.value = response.user.isAdmin ? 'true' : 'false'
+
+    await navigateTo('/')
+  } catch (error) {
+    console.error('Login failed', error)
+    loginError.value = error?.data?.message || error?.message || 'Failed to login. Please try again.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -59,10 +106,48 @@ const handleLogin = (name, isAdmin = false) => {
   margin-top: 20px;
 }
 
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #d4f8d3;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #8dd8ff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+.link-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .player-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.status-text {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.status-text.error {
+  color: #ff9f9f;
 }
 
 .admin-btn {

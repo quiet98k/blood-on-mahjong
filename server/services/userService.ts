@@ -39,6 +39,19 @@ export class UserService {
   }
 
   /**
+   * List all users (debug/admin tooling)
+   */
+  static async getAllUsers(): Promise<User[]> {
+    const collection = await getCollection<User>(this.COLLECTION_NAME)
+    return await collection.find({}).sort({ createdAt: 1 }).toArray()
+  }
+
+  static async getUsersByProvider(provider: User['oauthProvider']): Promise<User[]> {
+    const collection = await getCollection<User>(this.COLLECTION_NAME)
+    return await collection.find({ oauthProvider: provider }).sort({ createdAt: 1 }).toArray()
+  }
+
+  /**
    * Create or update user from Google OAuth
    */
   static async upsertGoogleUser(profile: {
