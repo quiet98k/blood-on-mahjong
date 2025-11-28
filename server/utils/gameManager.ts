@@ -12,7 +12,7 @@ import {
   TileSuit
 } from '../types/game';
 import { createDeck, shuffleTiles, findTileById, removeTile, sortTiles, tilesEqual, groupTiles, isMissingOneSuit } from './tiles';
-import { canWin, isTing, getListeningTiles } from './handValidator';
+import { canWin, isTing } from './handValidator';
 import { calculateFan, calculateWinningScore, calculateKongScore, calculateGameResult } from './scoring';
 import { randomUUID } from 'crypto';
 import { saveGameState, loadGameState, loadAllGameStates, deleteGameState } from './gamePersistence';
@@ -277,7 +277,10 @@ class GameManager {
         actions.push(ActionType.DISCARD);
       }
 
-      if (player.hand.concealedTiles.length >= 14) {
+      const exposedTileCount = player.hand.exposedMelds.reduce((sum, meld) => sum + meld.tiles.length, 0);
+      const totalTileCount = player.hand.concealedTiles.length + exposedTileCount;
+
+      if (totalTileCount >= 14) {
         // Check for concealed kong
         const groups = groupTiles(player.hand.concealedTiles);
         for (const group of groups.values()) {
@@ -297,7 +300,7 @@ class GameManager {
         }
 
         // Check if can win
-        const winCheck = canWin(player.hand.concealedTiles);
+        const winCheck = canWin(player.hand.concealedTiles, player.hand.exposedMelds.length);
         if (winCheck.canWin) {
           actions.push(ActionType.HU);
         }
@@ -383,7 +386,7 @@ class GameManager {
     }
 
     // Check for ting status
-    player.isTing = isTing(player.hand.concealedTiles);
+    player.isTing = isTing(player.hand.concealedTiles, player.hand.exposedMelds.length);
 
     // Check if other players can peng, kong, or hu
     this.checkPendingActions(game, tile);
@@ -526,12 +529,37 @@ class GameManager {
   }
 
   private handleHu(game: GameState, player: Player): void {
+    const pendingAction = game.pendingActions.find(pa => pa.playerId === player.id);
+    const winningTile = pendingAction?.tile;
+
+    if (winningTile) {
+      player.hand.concealedTiles.push(winningTile);
+      player.hand.concealedTiles = sortTiles(player.hand.concealedTiles);
+
+      const lastDiscard = game.discardPile[game.discardPile.length - 1];
+      if (lastDiscard && lastDiscard.id === winningTile.id) {
+        game.discardPile.pop();
+      } else {
+        const discardIndex = game.discardPile.findIndex(t => t.id === winningTile.id);
+        if (discardIndex !== -1) {
+          game.discardPile.splice(discardIndex, 1);
+        }
+      }
+    }
+
+    // Hu resolves all pending reactions to the discard
+    game.pendingActions = [];
+
     player.status = PlayerStatus.WON;
     game.winnersCount++;
 
-    // Calculate fan
-    const winCheck = canWin(player.hand.concealedTiles);
-    const isSelfDrawn = player.hand.concealedTiles.length === 14;
+    const existingMelds = player.hand.exposedMelds.length;
+    const winCheck = canWin(player.hand.concealedTiles, existingMelds);
+    if (!winCheck.canWin) {
+      throw new Error('Invalid Hu declaration');
+    }
+
+    const isSelfDrawn = !pendingAction;
     const isKongFlower = false; // TODO: track if won after kong draw
     
     const fan = calculateFan(
@@ -589,12 +617,8 @@ class GameManager {
 
       // Check for hu
       const testHand = [...player.hand.concealedTiles, discardedTile];
-      if (canWin(testHand).canWin) {
-        // Must be missing one suit
-        const missing = isMissingOneSuit(testHand);
-        if (missing.missing) {
-          actions.push(ActionType.HU);
-        }
+      if (canWin(testHand, player.hand.exposedMelds.length).canWin) {
+        actions.push(ActionType.HU);
       }
 
       if (actions.length > 0) {

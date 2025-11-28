@@ -4,8 +4,8 @@ import { sortTiles, groupTiles, isSequence, isTriplet, isPair, tilesEqual } from
 /**
  * Check if a hand can win with standard pattern (4 melds + 1 pair)
  */
-export function canWinStandard(tiles: Tile[]): boolean {
-  if (tiles.length !== 14) return false;
+export function canWinStandard(tiles: Tile[], existingMelds = 0): boolean {
+  const requiredMelds = Math.max(0, 4 - existingMelds);
   
   // Try each possible pair as the eyes
   const groups = groupTiles(tiles);
@@ -24,7 +24,7 @@ export function canWinStandard(tiles: Tile[]): boolean {
       remainingTiles.splice(idx2, 1);
       
       // Check if remaining 12 tiles form 4 melds
-      if (canFormMelds(remainingTiles, 4)) {
+      if (canFormMelds(remainingTiles, requiredMelds)) {
         return true;
       }
     }
@@ -41,7 +41,7 @@ function canFormMelds(tiles: Tile[], n: number): boolean {
     return tiles.length === 0;
   }
   
-  if (tiles.length < 3) {
+  if (tiles.length < n * 3) {
     return false;
   }
   
@@ -92,7 +92,8 @@ function canFormMelds(tiles: Tile[], n: number): boolean {
 /**
  * Check if a hand can win with seven pairs (七对)
  */
-export function canWinSevenPairs(tiles: Tile[]): boolean {
+export function canWinSevenPairs(tiles: Tile[], existingMelds = 0): boolean {
+  if (existingMelds > 0) return false;
   if (tiles.length !== 14) return false;
   
   const groups = groupTiles(tiles);
@@ -112,12 +113,12 @@ export function canWinSevenPairs(tiles: Tile[]): boolean {
 /**
  * Check if hand can win (either standard or seven pairs)
  */
-export function canWin(tiles: Tile[]): { canWin: boolean; winType: WinType | null } {
-  if (canWinStandard(tiles)) {
+export function canWin(tiles: Tile[], existingMelds = 0): { canWin: boolean; winType: WinType | null } {
+  if (canWinStandard(tiles, existingMelds)) {
     return { canWin: true, winType: WinType.STANDARD };
   }
   
-  if (canWinSevenPairs(tiles)) {
+  if (canWinSevenPairs(tiles, existingMelds)) {
     return { canWin: true, winType: WinType.SEVEN_PAIRS };
   }
   
@@ -127,8 +128,9 @@ export function canWin(tiles: Tile[]): { canWin: boolean; winType: WinType | nul
 /**
  * Get all tiles that would complete a winning hand (listening tiles)
  */
-export function getListeningTiles(tiles: Tile[]): Tile[] {
-  if (tiles.length !== 13) return [];
+export function getListeningTiles(tiles: Tile[], existingMelds = 0): Tile[] {
+  const expectedTileCount = 13 - existingMelds * 3;
+  if (tiles.length !== expectedTileCount) return [];
   
   const listeningTiles: Tile[] = [];
   
@@ -144,7 +146,7 @@ export function getListeningTiles(tiles: Tile[]): Tile[] {
     const testTile: Tile = { suit: suit as any, value, id: 'test' };
     const testHand = [...tiles, testTile];
     
-    if (canWin(testHand).canWin) {
+    if (canWin(testHand, existingMelds).canWin) {
       // Check if not already in list
       if (!listeningTiles.some(t => t.suit === suit && t.value === value)) {
         listeningTiles.push(testTile);
@@ -158,8 +160,8 @@ export function getListeningTiles(tiles: Tile[]): Tile[] {
 /**
  * Check if a player is in "Ting" (listening/ready to win)
  */
-export function isTing(tiles: Tile[]): boolean {
-  return getListeningTiles(tiles).length > 0;
+export function isTing(tiles: Tile[], existingMelds = 0): boolean {
+  return getListeningTiles(tiles, existingMelds).length > 0;
 }
 
 /**
