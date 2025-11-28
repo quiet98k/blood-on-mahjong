@@ -150,3 +150,30 @@ export interface Session {
   expiresAt: Date;
   createdAt: Date;
 }
+
+/**
+ * Socket Connection Collection - For tracking connected users across servers
+ */
+export interface SocketConnection {
+  _id?: ObjectId;
+  socketId: string;
+  userId: string;
+  userName: string;
+  roomId?: string;
+  serverId?: string; // Server instance ID for multi-server setups
+  connectedAt: Date;
+  lastSeenAt: Date;
+}
+
+/**
+ * Room State Collection - For tracking room membership across servers
+ */
+export interface RoomState {
+  _id?: ObjectId;
+  roomId: string;
+  playerIds: string[]; // Array of user IDs in room
+  socketIds: string[]; // Array of socket IDs in room
+  maxPlayers: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
