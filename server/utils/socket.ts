@@ -64,13 +64,13 @@ async function socketIsAdmin(socket: Socket): Promise<boolean> {
 // ✅ MongoDB Collections
 async function getSocketConnectionsCollection() {
   const client = await getMongoClient()
-  const db = client.db('Blood_mahjong')
+  const db = client.db(process.env.MONGODB_DB || 'blood_on_mahjong')
   return db.collection<SocketConnection>('socketConnections')
 }
 
 async function getRoomStatesCollection() {
   const client = await getMongoClient()
-  const db = client.db('Blood_mahjong')
+  const db = client.db(process.env.MONGODB_DB || 'blood_on_mahjong')
   return db.collection<RoomState>('roomStates')
 }
 
