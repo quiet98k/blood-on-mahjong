@@ -6,7 +6,9 @@ import { createClient } from 'redis'
 import { getMongoClient } from './mongo'
 import type { SocketConnection, RoomState } from '../types/database'
 import { gameManager } from './gameManager'
-import { GameEndReason } from '../types/game'
+import { ActionType, GameEndReason } from '../types/game'
+import { AuthService } from '../services/authService'
+import { UserService } from '../services/userService'
 
 let io: SocketIOServer | null = null
 
@@ -15,6 +17,48 @@ export interface SocketUser {
   userId: string
   userName: string
   roomId?: string
+}
+
+function parseCookies(header?: string) {
+  const result: Record<string, string> = {}
+  if (!header) return result
+
+  for (const part of header.split(';')) {
+    const [rawKey, ...rest] = part.trim().split('=')
+    if (!rawKey) continue
+    const key = decodeURIComponent(rawKey)
+    const value = decodeURIComponent(rest.join('=') || '')
+    result[key] = value
+  }
+
+  return result
+}
+
+async function socketIsAdmin(socket: Socket): Promise<boolean> {
+  const cookies = parseCookies(socket.handshake.headers.cookie)
+
+  if (cookies.mahjong_session) {
+    const userId = await AuthService.validateSession(cookies.mahjong_session)
+    if (userId) {
+      const user = await UserService.getUserById(userId)
+      if (user) {
+        return !!user.isAdmin
+      }
+    }
+  }
+
+  if (cookies.user_id) {
+    const user = await UserService.getUserById(cookies.user_id)
+    if (user) {
+      return !!user.isAdmin
+    }
+  }
+
+  if (cookies.is_admin) {
+    return cookies.is_admin === 'true'
+  }
+
+  return false
 }
 
 // ✅ MongoDB Collections
@@ -212,6 +256,14 @@ export async function initializeSocketIO(server: HTTPServer) {
         const { gameId, playerId, type, tileId, tileIds } = data
         
         console.log(`🎮 Action received: ${type} from ${playerId} in game ${gameId}`)
+
+        if (type === ActionType.CHEAT_HU) {
+          const isAdmin = await socketIsAdmin(socket)
+          if (!isAdmin) {
+            socket.emit('game:error', { message: 'Admin privileges required' })
+            return
+          }
+        }
         
         // Execute action in GameManager (the brain)
         // This will validate the move, update state, and trigger broadcast via setWebSocketManager

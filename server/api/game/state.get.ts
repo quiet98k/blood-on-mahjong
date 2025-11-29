@@ -1,4 +1,6 @@
 import { gameManager } from '../../utils/gameManager';
+import { TileSuit } from '../../types/game';
+import { isAdminFromEvent } from '../../utils/session';
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
@@ -11,7 +13,10 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const game = await gameManager.getGame(gameId as string);
+  const normalizedGameId = gameId as string;
+  const normalizedPlayerId = playerId as string;
+
+  const game = await gameManager.getGame(normalizedGameId);
   
   if (!game) {
     throw createError({
@@ -20,7 +25,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const player = game.players.find(p => p.id === playerId);
+  const player = game.players.find(p => p.id === normalizedPlayerId);
   
   if (!player) {
     throw createError({
@@ -29,7 +34,27 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const availableActions = await gameManager.getAvailableActions(gameId as string, playerId as string);
+  const availableActions = await gameManager.getAvailableActions(normalizedGameId, normalizedPlayerId);
+
+  const isAdminUser = await isAdminFromEvent(event);
+
+  const maskedPlayers = game.players.map((p) => {
+    const shouldReveal = isAdminUser || p.id === normalizedPlayerId;
+
+    return {
+      ...p,
+      hand: {
+        ...p.hand,
+        concealedTiles: shouldReveal
+          ? p.hand.concealedTiles
+          : p.hand.concealedTiles.map((_, index) => ({
+              id: `hidden-${p.id}-${index}`,
+              suit: TileSuit.WAN,
+              value: 0
+            }))
+      }
+    };
+  });
 
   // Ensure isDealer is correctly passed
   const isDealer = player.isDealer;
@@ -39,18 +64,7 @@ export default defineEventHandler(async (event) => {
     data: {
       game: {
         ...game,
-        // For debugging/testing: Show all tiles so we can control other players
-        // In production, we should uncomment the hiding logic below
-        /*
-        players: game.players.map(p => ({
-          ...p,
-          hand: {
-            ...p.hand,
-            concealedTiles: p.id === playerId ? p.hand.concealedTiles : []
-          },
-          isDealer: p.isDealer
-        }))
-        */
+        players: maskedPlayers
       },
       playerView: player.hand,
       availableActions

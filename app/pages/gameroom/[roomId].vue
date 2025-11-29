@@ -61,6 +61,7 @@
                 :melds="northMelds"
                 :discards="northDiscards"
                 :is-winner="northIsWinner"
+                :reveal-hand="shouldRevealOpponents"
               />
             </div>
 
@@ -73,6 +74,7 @@
                 :melds="westMelds"
                 :discards="westDiscards"
                 :is-winner="westIsWinner"
+                :reveal-hand="shouldRevealOpponents"
               />
             </div>
 
@@ -86,6 +88,7 @@
                 :discards="eastDiscards"
                 :is-winner="eastIsWinner"
                 :claimable-discard-tile-id="claimableDiscardTileId"
+                :reveal-hand="shouldRevealOpponents"
               />
             </div>
 
@@ -114,7 +117,7 @@
             </button>
           </div>
 
-          <div class="test-controls" v-if="isAdmin === 'true'">
+          <div class="test-controls" v-if="isAdminUser">
             <h2 class="panel-title">Admin Debug</h2>
             <p class="panel-subtitle">Game Phase: {{ gameState?.phase }}</p>
             <p class="panel-subtitle">Players: {{ gameState?.players.length }}</p>
@@ -135,6 +138,17 @@
             <button class="mahjong-button panel-button small" @click="refreshState" :disabled="isInteractionLocked">
               Force Refresh State
             </button>
+
+            <button
+              class="mahjong-button panel-button small"
+              @click="toggleShowAllCards"
+              :disabled="isInteractionLocked"
+            >
+              {{ shouldRevealOpponents ? 'Hide All Cards' : 'Show All Cards' }}
+            </button>
+            <p class="panel-subtitle" style="margin-top: 4px; opacity: 0.7;">
+              Reveals opponents locally
+            </p>
 
             <!-- Control Other Players -->
             <div v-if="gameState?.phase === 'playing'" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
@@ -193,7 +207,7 @@
               </button>
             </div>
 
-            <div class="cheat-actions">
+            <div class="cheat-actions" v-if="isAdminUser">
               <button 
                 class="mahjong-button panel-button" 
                 @click="onCheatHu" 
@@ -221,7 +235,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import PlayerSelfArea from '~/components/PlayerSelfArea.vue'
 import PlayerOtherArea from '~/components/PlayerOtherArea.vue'
 import { useGame } from '~/composables/useGame'
@@ -247,6 +261,20 @@ const {
 
 const backToLobby = () => navigateTo('/')
 const isAdmin = useCookie('is_admin')
+const isAdminUser = computed(() => isAdmin.value === 'true' || isAdmin.value === true)
+const showAllCards = ref(false)
+const shouldRevealOpponents = computed(() => isAdminUser.value && showAllCards.value)
+
+watch(isAdminUser, (next) => {
+  if (!next && showAllCards.value) {
+    showAllCards.value = false
+  }
+})
+
+const toggleShowAllCards = () => {
+  if (!isAdminUser.value) return
+  showAllCards.value = !showAllCards.value
+}
 
 onMounted(() => {
   if (roomId.value && playerId.value) {
@@ -445,7 +473,9 @@ const showKong = computed(() => availableActions.value.includes(ActionType.KONG)
 const showHu = computed(() => availableActions.value.includes(ActionType.HU))
 const showPass = computed(() => availableActions.value.includes(ActionType.PASS))
 const isMyTurn = computed(() => currentTurnPlayer.value?.id === currentPlayer.value?.id)
-const canCheatHu = computed(() => isMyTurn.value && gameState.value?.phase === GamePhase.PLAYING)
+const canCheatHu = computed(
+  () => isAdminUser.value && isMyTurn.value && gameState.value?.phase === GamePhase.PLAYING
+)
 
 const onPeng = () => executeAction(ActionType.PENG)
 const onKong = () => executeAction(ActionType.KONG)

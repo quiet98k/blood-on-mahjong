@@ -5,12 +5,20 @@
       <h1 class="mahjong-title">Waiting Room</h1>
       <p class="mahjong-subtitle">
         Welcome back, {{ userName || 'Player' }}.
-        <span v-if="isAdmin === 'true' || isAdmin === true" class="admin-badge">(Admin Mode)</span>
+        <span v-if="isAdminUser" class="admin-badge">(Admin Mode)</span>
       </p>
 
       <div class="mahjong-actions">
         <button class="mahjong-button primary" @click="startNewGame">
           New Game
+        </button>
+
+        <button
+          v-if="isAdminUser"
+          class="mahjong-button secondary"
+          @click="goToAdminSandbox"
+        >
+          Admin Sandbox
         </button>
 
         <button class="mahjong-button secondary" @click="onJoinGame">
@@ -164,6 +172,8 @@ const userName = useCookie('user_name')
 const isAdmin = useCookie('is_admin')
 const router = useRouter()
 
+const isAdminUser = computed(() => isAdmin.value === 'true' || isAdmin.value === true)
+
 const { data: profileResponse, pending: profilePending, error: profileError, refresh: refreshProfile } =
   await useFetch('/api/profile', {
     method: 'GET',
@@ -279,13 +289,6 @@ const saveProfile = async () => {
 }
 
 const startNewGame = async () => {
-  console.log('Checking Admin Status:', isAdmin.value, typeof isAdmin.value)
-
-  if (isAdmin.value === 'true' || isAdmin.value === true) {
-    console.log('Redirecting to Admin Test Page...')
-    return navigateTo('/admin-test')
-  }
-
   try {
     const response = await $fetch('/api/game/create', {
       method: 'POST',
@@ -305,6 +308,7 @@ const startNewGame = async () => {
 
 const onJoinGame = () => navigateTo('/join-game')
 const onMatchHistory = () => router.push('/history')
+const goToAdminSandbox = () => navigateTo('/admin-test')
 
 const logout = () => {
   const token = useCookie('auth_token')

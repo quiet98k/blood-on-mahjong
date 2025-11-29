@@ -48,7 +48,7 @@
           :key="tile.id"
           :tile="tile"
           :small="true"
-          :back="true"
+          :back="!revealHand"
           :dimmed="isWinner"
         />
       </div>
@@ -80,7 +80,7 @@
           :key="tile.id"
           :tile="tile"
           :small="true"
-          :back="true"
+          :back="!revealHand"
           :dimmed="isWinner"
         />
       </div>
@@ -114,6 +114,7 @@ const props = defineProps<{
   discards: Tile[]
   isWinner?: boolean
   claimableDiscardTileId?: string | null
+  revealHand?: boolean
 }>()
 </script>
 

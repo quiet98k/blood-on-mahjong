@@ -1,6 +1,7 @@
 import { gameManager } from '../../utils/gameManager';
 import { ActionType } from '../../types/game';
 import { emitToRoom } from '../../utils/socket';
+import { requireAdminUser } from '../../utils/session';
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -19,6 +20,10 @@ export default defineEventHandler(async (event) => {
       statusCode: 400,
       message: 'Invalid action type'
     });
+  }
+
+  if (action === ActionType.CHEAT_HU) {
+    await requireAdminUser(event);
   }
 
   try {
