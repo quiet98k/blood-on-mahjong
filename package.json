@@ -11,7 +11,7 @@
     "postinstall": "nuxt prepare",
     "start": "nuxt start",
     "test:mock": "node -e \"console.log('FIX ME: placeholder test - replace with real tests')\"",
-    "test": "playwright test"
+    "test": "playwright test --browser=chromium"
   },
   "dependencies": {
     "@nuxt/icon": "^2.0.0",
