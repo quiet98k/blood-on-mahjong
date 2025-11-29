@@ -68,7 +68,7 @@ jobs:
     needs: prod
     runs-on: vcm
     container:
-      image: mcr.microsoft.com/playwright:v1.56.1-jammy
+      image: mcr.microsoft.com/playwright:v1.48.2-jammy
 
     steps:
       - name: Checkout repository
