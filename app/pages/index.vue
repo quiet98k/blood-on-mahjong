@@ -48,122 +48,110 @@
     >
       <template #body>
         <div class="profile-modal-shell">
-          <div class="profile-card-panel">
-            <div class="profile-header">
-              <div>
-                <h2 class="profile-title">Player Profile</h2>
-                <p class="profile-description">
-                  Share your details so friends know who is at the table.
-                </p>
-              </div>
+          <div v-if="profileError">
+            <UAlert color="red" variant="soft" icon="i-heroicons-exclamation-triangle">
+              {{ profileError?.data?.message || profileError?.message || 'Unable to load your profile.' }}
+            </UAlert>
+            <div class="profile-actions">
+              <UButton color="emerald" variant="solid" @click="refreshProfile">
+                Retry
+              </UButton>
+            </div>
+          </div>
+          <div v-else>
+            <div v-if="profilePending && !profileHasLoaded" class="profile-skeletons">
+              <USkeleton
+                class="skeleton-row"
+                v-for="i in 3"
+                :key="i"
+                height="48px"
+                :ui="{ rounded: 'rounded-lg' }"
+              />
             </div>
 
-            <div v-if="profileError">
-              <UAlert color="red" variant="soft" icon="i-heroicons-exclamation-triangle">
-                {{ profileError?.data?.message || profileError?.message || 'Unable to load your profile.' }}
-              </UAlert>
-              <div class="profile-actions">
-                <UButton color="emerald" variant="solid" @click="refreshProfile">
-                  Retry
-                </UButton>
-              </div>
-            </div>
-            <div v-else>
-              <div v-if="profilePending && !profileHasLoaded" class="profile-skeletons">
-                <USkeleton
-                  class="skeleton-row"
-                  v-for="i in 3"
-                  :key="i"
-                  height="48px"
-                  :ui="{ rounded: 'rounded-lg' }"
-                />
+            <UForm
+              v-else
+              :state="profileForm"
+              class="profile-form"
+              @submit.prevent="saveProfile"
+            >
+              <div class="profile-grid">
+                <UFormField label="Full Name" name="name" required>
+                  <UInput
+                    v-model="profileForm.name"
+                    :disabled="!isEditingProfile || profileSaving"
+                    placeholder="Enter your name"
+                  />
+                </UFormField>
+
+                <UFormField label="Date of Birth" name="dateOfBirth">
+                  <UInput
+                    v-model="profileForm.dateOfBirth"
+                    type="date"
+                    :disabled="!isEditingProfile || profileSaving"
+                  />
+                </UFormField>
+
+                <UFormField label="Gender" name="gender">
+                  <UInput
+                    v-model="profileForm.gender"
+                    :disabled="!isEditingProfile || profileSaving"
+                    placeholder="Enter gender"
+                  />
+                </UFormField>
+
+                <UFormField label="Address" name="address" class="profile-full-row">
+                  <UTextarea
+                    v-model="profileForm.address"
+                    :disabled="!isEditingProfile || profileSaving"
+                    placeholder="City, Country"
+                    :rows="3"
+                  />
+                </UFormField>
               </div>
 
-              <UForm
-                v-else
-                :state="profileForm"
-                class="profile-form"
-                @submit.prevent="saveProfile"
+              <UAlert
+                v-if="profileStatus.message"
+                :color="profileStatus.type === 'error' ? 'red' : 'emerald'"
+                :variant="profileStatus.type === 'error' ? 'soft' : 'subtle'"
+                icon="i-heroicons-information-circle"
               >
-                <div class="profile-grid">
-                  <!-- Nuxt UI v4: UFormField instead of UFormGroup -->
-                  <UFormField label="Full Name" name="name" required>
-                    <UInput
-                      v-model="profileForm.name"
-                      :disabled="!isEditingProfile || profileSaving"
-                      placeholder="Enter your name"
-                    />
-                  </UFormField>
+                {{ profileStatus.message }}
+              </UAlert>
 
-                  <UFormField label="Date of Birth" name="dateOfBirth">
-                    <UInput
-                      v-model="profileForm.dateOfBirth"
-                      type="date"
-                      :disabled="!isEditingProfile || profileSaving"
-                    />
-                  </UFormField>
-
-                  <UFormField label="Gender" name="gender">
-                    <UInput
-                      v-model="profileForm.gender"
-                      :disabled="!isEditingProfile || profileSaving"
-                      placeholder="Enter gender"
-                    />
-                  </UFormField>
-
-                  <UFormField label="Address" name="address" class="profile-full-row">
-                    <UTextarea
-                      v-model="profileForm.address"
-                      :disabled="!isEditingProfile || profileSaving"
-                      placeholder="City, Country"
-                      :rows="3"
-                    />
-                  </UFormField>
-                </div>
-
-                <UAlert
-                  v-if="profileStatus.message"
-                  :color="profileStatus.type === 'error' ? 'red' : 'emerald'"
-                  :variant="profileStatus.type === 'error' ? 'soft' : 'subtle'"
-                  icon="i-heroicons-information-circle"
+              <div class="profile-actions">
+                <UButton
+                  v-if="!isEditingProfile"
+                  color="emerald"
+                  icon="i-heroicons-pencil-square"
+                  @click="startEditingProfile"
+                  :disabled="profilePending || !profileHasLoaded"
                 >
-                  {{ profileStatus.message }}
-                </UAlert>
+                  Edit Profile
+                </UButton>
 
-                <div class="profile-actions">
+                <template v-else>
                   <UButton
-                    v-if="!isEditingProfile"
+                    type="submit"
                     color="emerald"
-                    icon="i-heroicons-pencil-square"
-                    @click="startEditingProfile"
-                    :disabled="profilePending || !profileHasLoaded"
+                    icon="i-heroicons-check"
+                    :loading="profileSaving"
                   >
-                    Edit Profile
+                    Save
                   </UButton>
-
-                  <template v-else>
-                    <UButton
-                      type="submit"
-                      color="emerald"
-                      icon="i-heroicons-check"
-                      :loading="profileSaving"
-                    >
-                      Save
-                    </UButton>
-                    <UButton
-                      type="button"
-                      color="gray"
-                      variant="ghost"
-                      icon="i-heroicons-x-mark"
-                      @click="cancelEditingProfile"
-                      :disabled="profileSaving"
-                    >
-                      Cancel
-                    </UButton>
-                  </template>
-                </div>
-              </UForm>
-            </div>
+                  <UButton
+                    type="button"
+                    color="gray"
+                    variant="ghost"
+                    icon="i-heroicons-x-mark"
+                    @click="cancelEditingProfile"
+                    :disabled="profileSaving"
+                  >
+                    Cancel
+                  </UButton>
+                </template>
+              </div>
+            </UForm>
           </div>
         </div>
       </template>
@@ -422,35 +410,10 @@ const logout = () => {
 }
 
 .profile-modal-shell {
-  width: min(640px, calc(100vw - 32px));
+  width: min(560px, 100%);
   margin: 0 auto;
-}
-
-.profile-card-panel {
-  background: rgba(7, 19, 14, 0.95);
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #f5f5f5;
-  padding: 16px 20px 20px;
-}
-
-.profile-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.profile-title {
-  font-size: 1.35rem;
-  margin: 0;
-}
-
-.profile-description {
-  font-size: 0.9rem;
-  opacity: 0.8;
-  margin: 4px 0 0;
+  padding: 0 8px 8px;
+  box-sizing: border-box;
 }
 
 .profile-close-btn {
@@ -464,19 +427,13 @@ const logout = () => {
 }
 
 .profile-grid {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
 .profile-full-row {
-  grid-column: 1 / -1;
-}
-
-@media (min-width: 640px) {
-  .profile-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  width: 100%;
 }
 
 .profile-actions {
