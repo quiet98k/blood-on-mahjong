@@ -45,6 +45,9 @@
           <div class="mahjong-table">
             <!-- Center status message -->
             <div class="table-center">
+              <p v-if="showMobileActionNotice" class="mobile-scroll-notice">
+                Action available — scroll down for buttons
+              </p>
               <p class="status">
                 <span v-if="isWinner">You Won! 🎉</span>
                 <span v-else>{{ turnMessage }}</span>
@@ -512,6 +515,15 @@ const onCheatHu = () => executeAction(ActionType.CHEAT_HU)
 // For self-drawn Kong (Concealed or Extended)
 const showConcealedKong = computed(() => availableActions.value.includes(ActionType.CONCEALED_KONG))
 const showExtendedKong = computed(() => availableActions.value.includes(ActionType.EXTENDED_KONG))
+const hasPriorityActions = computed(
+  () =>
+    showPeng.value ||
+    showKong.value ||
+    showHu.value ||
+    showConcealedKong.value ||
+    showExtendedKong.value
+)
+const showMobileActionNotice = computed(() => shouldRotateView.value && hasPriorityActions.value)
 
 const onConcealedKong = () => {
   // We need to know which tiles to kong. 
@@ -632,6 +644,11 @@ const forceDiscard = async (p: Player) => {
   max-width: none;
 }
 
+.room-container--rotated {
+  display: flex;
+  flex-direction: column;
+}
+
 .room-container {
   background: rgba(7, 19, 14, 0.92);
   border-radius: 20px;
@@ -706,6 +723,16 @@ const forceDiscard = async (p: Player) => {
   width: 60%;
   transform: translate(-50%, -50%);
   text-align: center;
+}
+
+.mobile-scroll-notice {
+  background: rgba(9, 30, 22, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  margin-bottom: 6px;
+  display: inline-block;
 }
 
 .status {
@@ -965,6 +992,25 @@ const forceDiscard = async (p: Player) => {
     transform-origin: center;
     width: min(900px, 90vh);
     max-height: calc(100vw - 24px);
+  }
+
+  .room-container--rotated .room-header {
+    order: 2;
+    margin-top: 12px;
+  }
+
+  .room-container--rotated .room-main {
+    order: 1;
+    flex-direction: column;
+  }
+
+  .room-container--rotated .table-wrapper {
+    order: 1;
+  }
+
+  .room-container--rotated .side-panel {
+    order: 2;
+    width: 100%;
   }
 }
 
