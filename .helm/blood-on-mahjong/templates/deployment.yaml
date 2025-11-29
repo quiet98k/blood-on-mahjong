@@ -34,3 +34,18 @@ spec:
                 secretKeyRef:
                   name: redis-uri
                   key: uri
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: google-oauth
+                  key: client_id
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: google-oauth
+                  key: client_secret
+            - name: GOOGLE_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: google-oauth
+                  key: redirect_uri
