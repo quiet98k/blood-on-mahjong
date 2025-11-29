@@ -5,7 +5,7 @@
       <h1 class="mahjong-title">Waiting Room</h1>
       <p class="mahjong-subtitle">
         Welcome back, {{ userName || 'Player' }}.
-        <span v-if="isAdmin === 'true' || isAdmin === true" style="color: #ff6b6b; font-size: 0.8em;">(Admin Mode)</span>
+        <span v-if="isAdmin === 'true' || isAdmin === true" class="admin-badge">(Admin Mode)</span>
       </p>
 
       <div class="mahjong-actions">
@@ -21,7 +21,10 @@
           Match History
         </button>
 
-        <!-- 👇 Added logout button -->
+        <button class="mahjong-button secondary" @click="openProfileModal">
+          User Profile
+        </button>
+
         <button class="mahjong-button danger" @click="logout">
           Log Out
         </button>
@@ -30,8 +33,129 @@
       <p class="mahjong-hint">
         New Game will temporarily send you to room <strong>#66666</strong>.
       </p>
-
     </div>
+
+    <UModal v-v-if="isProfileModalOpen" :teleport="true">
+      <div class="profile-modal-shell">
+        <UCard class="profile-card-panel">
+          <template #header>
+            <div class="profile-header">
+              <div>
+                <h2 class="profile-title">Player Profile</h2>
+                <p class="profile-description">Share your details so friends know who is at the table.</p>
+              </div>
+              <UButton
+                color="gray"
+                variant="ghost"
+                icon="i-heroicons-x-mark"
+                class="profile-close-btn"
+                @click="closeProfileModal"
+              />
+            </div>
+          </template>
+
+          <div v-if="profileError">
+            <UAlert color="red" variant="soft" icon="i-heroicons-exclamation-triangle">
+              {{ profileError?.data?.message || profileError?.message || 'Unable to load your profile.' }}
+            </UAlert>
+            <div class="profile-actions">
+              <UButton color="emerald" variant="solid" @click="refreshProfile">
+                Retry
+              </UButton>
+            </div>
+          </div>
+          <div v-else>
+            <div v-if="profilePending && !profileHasLoaded" class="profile-skeletons">
+              <USkeleton class="skeleton-row" v-for="i in 3" :key="i" height="48px" :ui="{ rounded: 'rounded-lg' }" />
+            </div>
+
+            <UForm
+              v-else
+              :state="profileForm"
+              class="profile-form"
+              @submit.prevent="saveProfile"
+            >
+              <div class="profile-grid">
+                <UFormGroup label="Full Name" name="name" required>
+                  <UInput
+                    v-model="profileForm.name"
+                    :disabled="!isEditingProfile || profileSaving"
+                    placeholder="Enter your name"
+                  />
+                </UFormGroup>
+
+                <UFormGroup label="Date of Birth" name="dateOfBirth">
+                  <UInput
+                    v-model="profileForm.dateOfBirth"
+                    type="date"
+                    :disabled="!isEditingProfile || profileSaving"
+                  />
+                </UFormGroup>
+
+                <UFormGroup label="Gender" name="gender">
+                  <UInput
+                    v-model="profileForm.gender"
+                    :disabled="!isEditingProfile || profileSaving"
+                    placeholder="Enter gender"
+                  />
+                </UFormGroup>
+
+                <UFormGroup label="Address" name="address" class="profile-full-row">
+                  <UTextarea
+                    v-model="profileForm.address"
+                    :disabled="!isEditingProfile || profileSaving"
+                    placeholder="City, Country"
+                    rows="3"
+                  />
+                </UFormGroup>
+              </div>
+
+              <UAlert
+                v-if="profileStatus.message"
+                :color="profileStatus.type === 'error' ? 'red' : 'emerald'"
+                :variant="profileStatus.type === 'error' ? 'soft' : 'subtle'"
+                icon="i-heroicons-information-circle"
+              >
+                {{ profileStatus.message }}
+              </UAlert>
+
+              <div class="profile-actions">
+                <UButton
+                  v-if="!isEditingProfile"
+                  color="emerald"
+                  icon="i-heroicons-pencil-square"
+                  @click="startEditingProfile"
+                  :disabled="profilePending || !profileHasLoaded"
+                >
+                  Edit Profile
+                </UButton>
+
+                <template v-else>
+                  <UButton
+                    type="submit"
+                    color="emerald"
+                    icon="i-heroicons-check"
+                    :loading="profileSaving"
+                  >
+                    Save
+                  </UButton>
+                  <UButton
+                    type="button"
+                    color="gray"
+                    variant="ghost"
+                    icon="i-heroicons-x-mark"
+                    @click="cancelEditingProfile"
+                    :disabled="profileSaving"
+                  >
+                    Cancel
+                  </UButton>
+                </template>
+              </div>
+            </UForm>
+          </div>
+        </UCard>
+      </div>
+    </UModal>
   </div>
 </template>
 
@@ -39,6 +163,122 @@
 const userName = useCookie('user_name')
 const isAdmin = useCookie('is_admin')
 const router = useRouter()
+
+const { data: profileResponse, pending: profilePending, error: profileError, refresh: refreshProfile } = await useFetch('/api/profile', {
+  method: 'GET',
+  cache: 'no-cache'
+})
+
+const profileForm = reactive({
+  name: '',
+  address: '',
+  dateOfBirth: '',
+  gender: ''
+})
+
+const isEditingProfile = ref(false)
+const profileSaving = ref(false)
+const profileStatus = ref({ type: '', message: '' })
+const isProfileModalOpen = ref(false)
+
+const profileHasLoaded = computed(() => Boolean(profileResponse.value?.data))
+
+const hydrateProfileForm = (payload) => {
+  if (!payload) return
+  profileForm.name = payload.name || ''
+  profileForm.address = payload.address || ''
+  profileForm.dateOfBirth = payload.dateOfBirth || ''
+  profileForm.gender = payload.gender || ''
+}
+
+watch(
+  () => profileResponse.value?.data,
+  (data) => {
+    if (data) {
+      hydrateProfileForm(data)
+    }
+  },
+  { immediate: true }
+)
+
+const setProfileStatus = (type, message) => {
+  profileStatus.value = { type, message }
+}
+
+const ensureProfileLoaded = async () => {
+  const isLoaded = profileHasLoaded.value
+  const isLoading = profilePending.value
+
+  if (!isLoaded && !isLoading) {
+    await refreshProfile()
+  }
+}
+
+const openProfileModal = async () => {
+  setProfileStatus('', '')
+  await ensureProfileLoaded()
+  isProfileModalOpen.value = true
+}
+
+const startEditingProfile = () => {
+  if (!profileHasLoaded.value) return
+  isEditingProfile.value = true
+  setProfileStatus('', '')
+}
+
+const cancelEditingProfile = () => {
+  hydrateProfileForm(profileResponse.value?.data)
+  isEditingProfile.value = false
+  setProfileStatus('', '')
+}
+
+const closeProfileModal = () => {
+  isProfileModalOpen.value = false
+}
+
+watch(isProfileModalOpen, (isOpen, wasOpen) => {
+  if (!isOpen && wasOpen) {
+    cancelEditingProfile()
+  }
+})
+
+const saveProfile = async () => {
+  if (!isEditingProfile.value || profileSaving.value) return
+
+  if (!profileForm.name.trim()) {
+    setProfileStatus('error', 'Name is required.')
+    return
+  }
+
+  profileSaving.value = true
+  setProfileStatus('', '')
+
+  try {
+    const response = await $fetch('/api/profile', {
+      method: 'PUT',
+      body: {
+        name: profileForm.name.trim(),
+        address: profileForm.address,
+        dateOfBirth: profileForm.dateOfBirth,
+        gender: profileForm.gender
+      },
+      headers: { 'Cache-Control': 'no-cache' }
+    })
+
+    if (response?.data) {
+      profileResponse.value = response
+    } else {
+      await refreshProfile()
+    }
+
+    setProfileStatus('success', 'Profile updated successfully.')
+    isEditingProfile.value = false
+  } catch (error) {
+    setProfileStatus('error', error?.data?.message || error?.message || 'Failed to update profile.')
+  } finally {
+    profileSaving.value = false
+  }
+}
 
 const startNewGame = async () => {
   console.log('Checking Admin Status:', isAdmin.value, typeof isAdmin.value)
@@ -93,11 +333,17 @@ const logout = () => {
   background: rgba(7, 19, 14, 0.9);
   border-radius: 18px;
   padding: 32px 40px;
-  max-width: 520px;
   width: 90%;
+  max-width: 520px;
   text-align: center;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 0 auto;
+}
+
+.admin-badge {
+  color: #ff6b6b;
+  font-size: 0.8em;
 }
 
 .mahjong-title {
@@ -169,4 +415,75 @@ const logout = () => {
   opacity: 0.85;
 }
 
+.profile-modal-shell {
+  width: min(640px, calc(100vw - 32px));
+  margin: 0 auto;
+}
+
+.profile-card-panel {
+  background: rgba(7, 19, 14, 0.95);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f5f5f5;
+}
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.profile-title {
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.profile-description {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin: 4px 0 0;
+}
+
+.profile-close-btn {
+  border-radius: 999px;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.profile-full-row {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 640px) {
+  .profile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.profile-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.profile-skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeleton-row {
+  width: 100%;
+}
 </style>

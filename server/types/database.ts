@@ -15,6 +15,10 @@ export interface User {
   isAdmin: boolean;
   createdAt: Date;
   lastLoginAt: Date;
+  address?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  profileUpdatedAt?: Date;
   stats: {
     gamesPlayed: number;
     gamesWon: number;

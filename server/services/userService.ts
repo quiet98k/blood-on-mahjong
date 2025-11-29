@@ -156,6 +156,55 @@ export class UserService {
   }
 
   /**
+   * Update basic profile fields for a user
+   */
+  static async updateProfile(userId: string, profile: {
+    name: string;
+    address?: string | null;
+    dateOfBirth?: string | null;
+    gender?: string | null;
+  }): Promise<User | null> {
+    const collection = await getCollection<User>(this.COLLECTION_NAME);
+
+    const name = profile.name?.trim();
+    if (!name) {
+      throw new Error('Name is required');
+    }
+
+    const setDoc: Partial<User> = {
+      name,
+      profileUpdatedAt: new Date()
+    };
+    const unsetDoc: Record<string, ''> = {};
+
+    const handleOptionalField = (
+      field: keyof Pick<User, 'address' | 'dateOfBirth' | 'gender'>,
+      value?: string | null
+    ) => {
+      if (value && value.toString().trim()) {
+        setDoc[field] = value.toString().trim();
+      } else {
+        unsetDoc[field] = '';
+      }
+    };
+
+    handleOptionalField('address', profile.address);
+    handleOptionalField('dateOfBirth', profile.dateOfBirth);
+    handleOptionalField('gender', profile.gender);
+
+    const updateQuery: Record<string, unknown> = {
+      $set: setDoc
+    };
+
+    if (Object.keys(unsetDoc).length > 0) {
+      updateQuery.$unset = unsetDoc;
+    }
+
+    await collection.updateOne({ userId }, updateQuery);
+    return await this.getUserById(userId);
+  }
+
+  /**
    * Get leaderboard
    */
   static async getLeaderboard(limit: number = 10): Promise<User[]> {
