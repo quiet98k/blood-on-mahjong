@@ -75,7 +75,7 @@ jobs:
           npx playwright install chromium
 
       - name: Install Playwright system deps
-        run: sudo npx playwright install-deps
+        run: npx playwright install-deps
 
       - name: Run tests
         env:
