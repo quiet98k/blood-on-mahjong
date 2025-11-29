@@ -74,9 +74,6 @@ jobs:
           npm ci
           npx playwright install chromium
 
-      - name: Install Playwright system deps
-        run: npx playwright install-deps
-
       - name: Run tests
         env:
           BASE_URL: "http://vcm-51072.vm.duke.edu:31823"
