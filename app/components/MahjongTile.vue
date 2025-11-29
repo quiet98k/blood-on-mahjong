@@ -61,7 +61,7 @@ const onClick = () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin: 0 2px;
+  margin: 0 1px;
   cursor: pointer;
   transition:
     transform 0.12s ease,
@@ -141,43 +141,46 @@ const onClick = () => {
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
+@media (max-width: 1300px) {
+  .tile {
+    width: 25px;
+    height: 30px;
+  }
+
+  .tile--small {
+    width: 25px;
+    height: 30px;
+  }
+
+  .tile-rank {
+    font-size: 0.7rem;
+    line-height: 1
+  }
+
+  .tile-suit {
+    font-size: 0.7rem;
+    line-height: 1
+  }
+}
+
 @media (max-width: 900px) {
   .tile {
-    width: 34px;
-    height: 52px;
+    width: 20px;
+    height: 25px;
   }
 
   .tile--small {
-    width: 28px;
-    height: 42px;
+    width: 20px;
+    height: 25px;
   }
 
   .tile-rank {
-    font-size: 0.9rem;
+    font-size: 0.5rem;
   }
 
   .tile-suit {
-    font-size: 0.75rem;
+    font-size: 0.5rem;
   }
 }
 
-@media (max-width: 600px) {
-  .tile {
-    width: 30px;
-    height: 46px;
-  }
-
-  .tile--small {
-    width: 24px;
-    height: 36px;
-  }
-
-  .tile-rank {
-    font-size: 0.75rem;
-  }
-
-  .tile-suit {
-    font-size: 0.65rem;
-  }
-}
 </style>
