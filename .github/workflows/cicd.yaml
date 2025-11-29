@@ -69,6 +69,7 @@ jobs:
     runs-on: vcm
     container:
       image: mcr.microsoft.com/playwright:v1.48.2-jammy
+      options: --user 1578357:1003
 
     steps:
       - name: Checkout repository
