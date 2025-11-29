@@ -2,7 +2,7 @@
 <template>
   <div class="mahjong-page">
     <div class="mahjong-card">
-      <h1 class="mahjong-title">Waiting Room</h1>
+      <h1 class="mahjong-title">Waiting Roomm</h1>
       <p class="mahjong-subtitle">
         Welcome back, {{ userName || 'Player' }}.
         <span v-if="isAdminUser" class="admin-badge">(Admin Mode)</span>
