@@ -9,7 +9,11 @@
       </p>
 
       <div class="mahjong-actions">
-        <button class="mahjong-button primary" @click="startNewGame">
+        <button
+          class="mahjong-button primary"
+          :disabled="isCreatingGame"
+          @click="startNewGame"
+        >
           New Game
         </button>
 
@@ -173,6 +177,7 @@ const isAdmin = useCookie('is_admin')
 const router = useRouter()
 
 const isAdminUser = computed(() => isAdmin.value === 'true' || isAdmin.value === true)
+const isCreatingGame = ref(false)
 
 const { data: profileResponse, pending: profilePending, error: profileError, refresh: refreshProfile } =
   await useFetch('/api/profile', {
@@ -289,6 +294,8 @@ const saveProfile = async () => {
 }
 
 const startNewGame = async () => {
+  if (isCreatingGame.value) return
+  isCreatingGame.value = true
   try {
     const response = await $fetch('/api/game/create', {
       method: 'POST',
@@ -303,6 +310,8 @@ const startNewGame = async () => {
     console.error('Unexpected response creating game:', response)
   } catch (e) {
     console.error('Error creating game:', e)
+  } finally {
+    isCreatingGame.value = false
   }
 }
 
