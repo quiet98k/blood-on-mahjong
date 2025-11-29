@@ -1,6 +1,7 @@
 <template>
-  <div class="mahjong-page">
-    <div class="room-container">
+  <div class="mahjong-page" :class="{ 'mobile-portrait': shouldRotateView }">
+    <div class="room-viewport" :class="{ 'room-viewport--rotated': shouldRotateView }">
+      <div class="room-container" :class="{ 'room-container--rotated': shouldRotateView }">
       <header class="room-header">
         <div class="room-info">
           <h1 class="mahjong-title">Mahjong Room</h1>
@@ -230,6 +231,7 @@
           </div>
         </div>
       </main>
+      </div>
     </div>
   </div>
 </template>
@@ -264,12 +266,25 @@ const isAdmin = useCookie('is_admin')
 const isAdminUser = computed(() => isAdmin.value === 'true' || isAdmin.value === true)
 const showAllCards = ref(false)
 const shouldRevealOpponents = computed(() => isAdminUser.value && showAllCards.value)
+const isMobilePortrait = ref(false)
+const shouldRotateView = computed(() => isMobilePortrait.value)
 
 watch(isAdminUser, (next) => {
   if (!next && showAllCards.value) {
     showAllCards.value = false
   }
 })
+
+const evaluateViewport = () => {
+  if (!process.client) {
+    return
+  }
+
+  const { innerWidth: width, innerHeight: height } = window
+  const smallestSide = Math.min(width, height)
+  const isPortrait = height >= width
+  isMobilePortrait.value = isPortrait && smallestSide <= 768
+}
 
 const toggleShowAllCards = () => {
   if (!isAdminUser.value) return
@@ -280,10 +295,21 @@ onMounted(() => {
   if (roomId.value && playerId.value) {
     connect(roomId.value, playerId.value)
   }
+
+  if (process.client) {
+    evaluateViewport()
+    window.addEventListener('resize', evaluateViewport)
+    window.addEventListener('orientationchange', evaluateViewport)
+  }
 })
 
 onUnmounted(() => {
   disconnect()
+
+  if (process.client) {
+    window.removeEventListener('resize', evaluateViewport)
+    window.removeEventListener('orientationchange', evaluateViewport)
+  }
 })
 
 // ---- Computed Players ----
@@ -596,6 +622,16 @@ const forceDiscard = async (p: Player) => {
   padding: 16px;
 }
 
+.room-viewport {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.room-container--rotated {
+  max-width: none;
+}
+
 .room-container {
   background: rgba(7, 19, 14, 0.92);
   border-radius: 20px;
@@ -826,6 +862,110 @@ const forceDiscard = async (p: Player) => {
   width: min(360px, 90%);
   text-align: center;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+@media (max-width: 1100px) {
+  .mahjong-table {
+    width: 100%;
+    max-width: 780px;
+  }
+
+  .side-panel {
+    flex: 0 0 200px;
+  }
+}
+
+@media (max-width: 900px) {
+  .room-main {
+    gap: 8px;
+  }
+
+  .mahjong-button {
+    font-size: 0.85rem;
+    padding: 8px 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .room-container {
+    padding: 12px;
+  }
+
+  .room-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .mahjong-title {
+    font-size: 1.2rem;
+  }
+
+  .mahjong-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .mahjong-table {
+    width: 100%;
+    border-width: 3px;
+    padding: 10px;
+  }
+
+  .side-panel {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .test-controls {
+    flex: 1 1 220px;
+  }
+
+  .panel-title {
+    font-size: 0.85rem;
+  }
+
+  .panel-subtitle {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .mahjong-table {
+    border-width: 2px;
+  }
+
+  .mahjong-button {
+    font-size: 0.75rem;
+    padding: 6px 10px;
+  }
+
+  .test-controls {
+    flex: 1 1 100%;
+  }
+
+  .panel-button {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+  .mobile-portrait {
+    min-height: 100vw;
+  }
+
+  .room-viewport--rotated {
+    width: 100vh;
+    height: 100vw;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  .room-container--rotated {
+    transform: rotate(90deg);
+    transform-origin: center;
+    width: min(900px, 90vh);
+    max-height: calc(100vw - 24px);
+  }
 }
 
 .overlay-title {

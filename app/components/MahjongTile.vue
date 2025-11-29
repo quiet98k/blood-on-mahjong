@@ -140,4 +140,44 @@ const onClick = () => {
   );
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
+
+@media (max-width: 900px) {
+  .tile {
+    width: 34px;
+    height: 52px;
+  }
+
+  .tile--small {
+    width: 28px;
+    height: 42px;
+  }
+
+  .tile-rank {
+    font-size: 0.9rem;
+  }
+
+  .tile-suit {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .tile {
+    width: 30px;
+    height: 46px;
+  }
+
+  .tile--small {
+    width: 24px;
+    height: 36px;
+  }
+
+  .tile-rank {
+    font-size: 0.75rem;
+  }
+
+  .tile-suit {
+    font-size: 0.65rem;
+  }
+}
 </style>

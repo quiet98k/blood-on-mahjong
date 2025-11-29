@@ -456,4 +456,30 @@ const logout = () => {
 .skeleton-row {
   width: 100%;
 }
+
+@media (max-width: 600px) {
+  .mahjong-card {
+    padding: 24px 20px;
+  }
+
+  .mahjong-title {
+    font-size: 1.6rem;
+  }
+
+  .mahjong-button {
+    font-size: 0.85rem;
+    padding: 10px 18px;
+  }
+}
+
+@media (max-width: 400px) {
+  .mahjong-card {
+    padding: 20px 16px;
+  }
+
+  .mahjong-button {
+    font-size: 0.8rem;
+    padding: 8px 14px;
+  }
+}
 </style>
