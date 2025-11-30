@@ -1,8 +1,6 @@
 name: cleanup
 
 on:
-  schedule:
-    - cron: "0 3 * * *"   # Runs at 3 AM every day
   workflow_dispatch:
 
 jobs:
