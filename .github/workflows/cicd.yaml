@@ -54,7 +54,7 @@ jobs:
             -n blood-on-mahjong-prod \
             --dry-run=client -o yaml | kubectl apply -f -
 
-          werf cr login -u ${{ github.repository_owner }} -p $WERF_REPO_GITHUB_TOKEN ghcr.io
+          # werf cr login -u ${{ github.repository_owner }} -p $WERF_REPO_GITHUB_TOKEN ghcr.io
           werf converge
         env:
           WERF_ENV: prod
