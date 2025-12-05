@@ -1,110 +1,128 @@
-# Nuxt Minimal Starter
+# Blood on Mahjong
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+A real-time multiplayer Sichuan Mahjong (血战到底) web application with WebSocket-based gameplay, Google OAuth authentication, and Kubernetes deployment.
 
-## Setup
+---
 
-Make sure to install dependencies:
+## Demo
+
+![Waiting Room](screenshots/waiting-room.png)
+![Game Room](screenshots/game.png)
+![Results](screenshots/result.png)
+
+---
+
+## Features
+
+- **Real-Time Multiplayer** — WebSocket (Socket.IO) with Redis adapter for horizontal scaling across multiple server instances
+- **Sichuan Mahjong Rules** — Full implementation of 血战到底 (Blood Fight) variant including Kong scoring, missing-suit declaration, and multi-winner support
+- **Authentication** — Google OAuth 2.0 with session management; mock login for development/testing
+- **Game State Persistence** — MongoDB-backed game state with automatic hydration on server restart
+- **Match History** — Persistent game records with player scores, win/loss tracking, and round details
+- **Room Management** — Create, join, and spectate game rooms with real-time player count updates
+- **Automated Testing** — Playwright E2E tests integrated into CI/CD pipeline
+- **Container-Native Deployment** — Docker multi-stage builds, Helm charts, and Kubernetes manifests via Werf
+
+---
+
+## Tech Stack
+
+| Layer | Technologies |
+|-------|--------------|
+| **Frontend** | Vue 3, Nuxt 4, Nuxt UI, TypeScript |
+| **Backend** | Nuxt Server (Nitro), Socket.IO, Node.js |
+| **Database** | MongoDB Atlas |
+| **Cache / Pub-Sub** | Redis (Socket.IO adapter) |
+| **Auth** | Google OAuth 2.0, Session cookies |
+| **Infrastructure** | Docker, Kubernetes, Helm, Werf |
+| **CI/CD** | GitHub Actions, Playwright |
+
+---
+
+## Installation
+
+### Prerequisites
+
+- Node.js 20+
+- MongoDB instance (local or Atlas)
+- Redis (optional, for multi-instance scaling)
+
+### Setup
 
 ```bash
-# npm
+# Clone the repository
+git clone https://github.com/Justin6Liu/blood-on-mahjong.git
+cd blood-on-mahjong
+
+# Install dependencies
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
 ```
 
-## Development Server
+Create `.env` with your credentials:
 
-Start the development server on `http://localhost:3000`:
+```env
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DB=blood_on_mahjong
+REDIS_URL=redis://localhost:6379
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/google/callback
+```
+
+---
+
+## Usage
+
+### Development
 
 ```bash
-# npm
 npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
+Open [http://localhost:3000](http://localhost:3000).
 
-Build the application for production:
+### Production Build
 
 ```bash
-# npm
 npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
+npm run start
 ```
 
-Locally preview production build:
+### Run Tests
 
 ```bash
-# npm
-npm run preview
+# E2E tests with Playwright
+npm test
 
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
+# With custom base URL
+BASE_URL=http://localhost:3000 npm test
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+---
 
-## MongoDB setup
+## Project Structure
 
-This project includes a simple MongoDB utility at `server/utils/mongo.ts`.
-
-1) Copy env example and set your values:
-
-```bash
-cp .env.example .env
+```
+blood-on-mahjong/
+├── app/                    # Frontend (Nuxt)
+│   ├── components/         # Vue components (MahjongTile, PlayerArea, etc.)
+│   ├── composables/        # Composition API hooks (useGame)
+│   ├── pages/              # Route pages (login, gameroom, history)
+│   └── middleware/         # Auth guards
+├── server/                 # Backend (Nitro)
+│   ├── api/                # REST endpoints (auth, game, rooms, history)
+│   ├── services/           # Business logic (AuthService, GameService)
+│   ├── utils/              # Core utilities (gameManager, socket, tiles)
+│   └── types/              # TypeScript definitions
+├── tests/                  # Playwright E2E tests
+├── .github/workflows/      # CI/CD pipeline
+├── .helm/                  # Kubernetes Helm charts
+├── Dockerfile              # Multi-stage container build
+└── werf.yaml               # Werf deployment config
 ```
 
-Edit `.env` and set:
+---
 
-- `MONGODB_URI` (e.g., `mongodb://localhost:27017`)
-- `MONGODB_DB` (default database name, e.g., `blood_mahjong`)
+## License
 
-2) Start the dev server and test the connection:
-
-```bash
-npm run dev
-```
-
-Open http://localhost:3000/api/ping — you should see `{ ok: 1, mongo: { ok: 1 } }` if the connection is working.
-
-Use the util in server routes:
-
-```ts
-// server/api/users.get.ts
-import { getCollection } from '../utils/mongo'
-
-export default defineEventHandler(async () => {
-	const users = await (await getCollection('users')).find({}).toArray()
-	return users
-})
-```
+MIT
